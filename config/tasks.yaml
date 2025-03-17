@@ -1,0 +1,36 @@
+# Application Configuration
+#https://docs.crewai.com/concepts/tasks
+extractor_agent_task:
+  description: >
+    some description for {topic}
+  expected_output: >
+    some output {topic}
+  agent: extractor_agent
+
+judge_agent_task:
+  description: >
+    some description for {topic}
+  expected_output: >
+    some output {topic}
+  agent: judge_agent
+
+alignment_agent_task:
+  description: >
+    some description for {topic}
+  expected_output: >
+    some output {topic}
+  agent: alignment_agent
+
+meta_judge_agent_task:
+  description: >
+    some description for {topic}
+  expected_output: >
+    some output {topic}
+  agent: meta_judge_agent
+
+feedback_agent_task:
+  description: >
+    some description for {topic}
+  expected_output: >
+    some output {topic}
+  agent: feedback_agent
