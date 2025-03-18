@@ -21,6 +21,13 @@ from pathlib import Path
 from typing import Union, Dict, List
 import yaml
 
+
+from rdflib import Graph, RDF, RDFS, OWL, URIRef, Namespace
+import pandas as pd
+import os
+import re
+from urllib.parse import urlparse
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -107,7 +114,7 @@ def required_config_exists(data: dict, type: str) -> bool:
     if type in required_keys:
         for item_name, item_config in data.items():
             if not isinstance(item_config, dict) or not required_keys[type].issubset(item_config.keys()):
-                return False  # Return False immediately if any item is missing a required key
+                return False
 
     return True
 
@@ -175,3 +182,128 @@ def load_config(config: Union[str, Path, Dict], type: str) -> dict:
         raise FileNotFoundError(f"Configuration file not found: {config}")
     except yaml.YAMLError as e:
         raise yaml.YAMLError(f"Error parsing YAML file {config}: {e}")
+
+
+#  ontology namespaces
+SKOS = Namespace("http://www.w3.org/2004/02/skos/core#")
+DC = Namespace("http://purl.org/dc/elements/1.1/")
+DCT = Namespace("http://purl.org/dc/terms/")
+IAO = Namespace("http://purl.obolibrary.org/obo/IAO_")
+OBO = Namespace("http://purl.obolibrary.org/obo/")
+
+# common annotation properties
+IAO_EDITORS_NOTE = URIRef("http://purl.obolibrary.org/obo/IAO_0000116")  # Editor's note
+IAO_CURATORS_NOTE = URIRef("http://purl.obolibrary.org/obo/IAO_0000233")  # Curator's note
+
+
+def extract_ontology_metadata(file_path, output_format="dataframe"):
+    """
+    Extract comprehensive metadata from an ontology file.
+
+    Parameters:
+    -----------
+    file_path : str
+        Path to the ontology file (OWL, RDF, TTL, etc.).
+    output_format : str, optional
+        Output format: "dataframe" (default) or "dict".
+
+    Returns:
+    --------
+    pandas.DataFrame or list of dict
+        Metadata about ontology classes.
+    """
+    g = Graph()
+
+    # Determine RDF format based on file extension
+    format_map = {"owl": "xml", "ttl": "turtle", "rdf": "xml", "n3": "n3", "jsonld": "json-ld", "nt": "nt"}
+    file_extension = file_path.split('.')[-1].lower()
+    rdf_format = format_map.get(file_extension, "xml")
+
+    try:
+        g.parse(file_path, format=rdf_format)
+    except Exception as e:
+        logger.error(f"Error parsing file: {e}")
+        return None
+
+    classes_data = []
+    all_classes = set()
+    class_types = [OWL.Class, RDFS.Class]
+
+    for class_type in class_types:
+        for cls in g.subjects(RDF.type, class_type):
+            all_classes.add(cls)
+
+    for cls in all_classes:
+        if not isinstance(cls, URIRef):
+            continue
+
+        class_uri = str(cls)
+        class_name = class_uri.split("/")[-1] if "/" in class_uri else class_uri
+
+        class_record = {
+            'class_id': class_name,
+            'class_uri': class_uri,
+            'label': None,
+            'definition': None,
+            'synonyms': []
+        }
+
+        # Extract label
+        labels = list(g.objects(cls, RDFS.label))
+        if labels:
+            class_record['label'] = str(labels[0])
+
+        # Extract definition
+        definitions = list(g.objects(cls, RDFS.comment))
+        if definitions:
+            class_record['definition'] = str(definitions[0])
+
+        # Extract synonyms
+        synonym_properties = [SKOS.altLabel, IAO_EDITORS_NOTE]
+        for syn_prop in synonym_properties:
+            for syn in g.objects(cls, syn_prop):
+                class_record['synonyms'].append(str(syn))
+
+        classes_data.append(class_record)
+
+    return pd.DataFrame(classes_data) if output_format == "dataframe" else classes_data
+
+
+def process_ontology(file_path, output_file=None):
+    """ Ontology Metadata Extraction Module
+
+    This module provides functionality to extract and process metadata from ontology files
+    in various RDF formats (OWL, TTL, RDF, etc.). It supports extracting labels, synonyms,
+    annotations, and relationships among ontology classes.
+
+    Finally, the result is saved into a CSV file.
+
+    Parameters:
+    -----------
+    file_path : str
+        Path to the ontology file (OWL, RDF, TTL, etc.).
+    output_file : str, optional
+        Path to save the processed metadata as a CSV file.
+
+    Returns:
+    --------
+    pandas.DataFrame
+        Extracted ontology metadata.
+
+    Example output for the cell ontology
+    class_id	class_uri	type	equivalent_to	broader	narrower	related	label	definition	related_synonyms	synonyms	exact_synonyms	alt_definitions	narrow_synonyms	broad_synonyms	editors_note	description	consider	curators_note
+    UBERON_0009571	http://purl.obolibrary.org/obo/UBERON_0009571	uberon	[]	[]	[]	[]	ventral midline	In protostomes (such as insects, snails and worms) as well as deuterostomes (vertebrates), the midline is an embryonic region that functions in patterning of the adjacent nervous tissue. The ventral midline in insects is a cell population extending along the ventral surface of the embryo and is the region from which cells detach to form the ventrally located nerve cords. In vertebrates, the midline is originally located dorsally. During development, it folds inwards and becomes the ventral part of the dorsally located neural tube and is then called the ventral midline, or floor plate.	[]	[]	[]	[]	[]	[]	[]		[]	[]
+    GO_2000973	http://purl.obolibrary.org/obo/GO_2000973	go	[]	[]	[]	[]	regulation of pro-B cell differentiation	Any process that modulates the frequency, rate or extent of pro-B cell differentiation.	['regulation of pro-B cell development']	['regulation of pro-B cell development', 'regulation of pro-B lymphocyte differentiation']	['regulation of pro-B lymphocyte differentiation']	[]	[]	[]	[]		[]	[]
+    CL_4033072	http://purl.obolibrary.org/obo/CL_4033072	cl	[]	[]	[]	[]	cycling gamma-delta T cell	A(n) gamma-delta T cell that is cycling.	[]	['proliferating gamma-delta T cell']	['proliferating gamma-delta T cell']	[]	[]	[]	[]		[]	[]
+    """
+    df = extract_ontology_metadata(file_path, output_format="dataframe")
+
+    if df is None:
+        logger.error(f"Failed to process ontology file: {file_path}")
+        return None
+
+    if output_file:
+        df.to_csv(output_file, index=False)
+        logger.info(f"Ontology metadata saved to {output_file}")
+
+    return df
