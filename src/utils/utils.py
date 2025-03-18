@@ -184,126 +184,438 @@ def load_config(config: Union[str, Path, Dict], type: str) -> dict:
         raise yaml.YAMLError(f"Error parsing YAML file {config}: {e}")
 
 
-#  ontology namespaces
+#  common ontology namespaces and properties
 SKOS = Namespace("http://www.w3.org/2004/02/skos/core#")
 DC = Namespace("http://purl.org/dc/elements/1.1/")
 DCT = Namespace("http://purl.org/dc/terms/")
 IAO = Namespace("http://purl.obolibrary.org/obo/IAO_")
 OBO = Namespace("http://purl.obolibrary.org/obo/")
+OBO_SYNONYM = Namespace("http://purl.obolibrary.org/obo/synonym_")
 
-# common annotation properties
+# specific OBO synonym types
+OBO_EXACT_SYNONYM = URIRef("http://purl.obolibrary.org/obo/IAO_0000118")
+OBO_RELATED_SYNONYM = URIRef("http://purl.obolibrary.org/obo/IAO_0000118")
+OBO_NARROW_SYNONYM = URIRef("http://purl.obolibrary.org/obo/IAO_0000118")
+OBO_BROAD_SYNONYM = URIRef("http://purl.obolibrary.org/obo/IAO_0000118")
+
+#  additional semantic relationship properties
+SKOS_BROADER = SKOS.broader  # More general concept or superclass
+SKOS_NARROWER = SKOS.narrower  # More specific concept or subclass
+SKOS_RELATED = SKOS.related  # Related concepts
+
+#  additional annotation properties
+RDFS_SEE_ALSO = RDFS.seeAlso  # Additional resources or references
+DC_SUBJECT = DC.subject  # The subject or domain of the class
+DC_COVERAGE = DC.coverage  # The scope of the class
+
+#  editor's note and curator's note properties
 IAO_EDITORS_NOTE = URIRef("http://purl.obolibrary.org/obo/IAO_0000116")  # Editor's note
 IAO_CURATORS_NOTE = URIRef("http://purl.obolibrary.org/obo/IAO_0000233")  # Curator's note
 
 
 def extract_ontology_metadata(file_path, output_format="dataframe"):
     """
-    Extract comprehensive metadata from an ontology file.
+       Extract comprehensive metadata from an ontology file.
 
-    Parameters:
-    -----------
-    file_path : str
-        Path to the ontology file (OWL, RDF, TTL, etc.).
-    output_format : str, optional
-        Output format: "dataframe" (default) or "dict".
+       Parameters:
+       -----------
+       file_path : str
+           Path to the ontology file (OWL, RDF, TTL, etc.).
+       output_format : str, optional
+           Output format: "dataframe" (default) or "dict".
 
-    Returns:
-    --------
-    pandas.DataFrame or list of dict
-        Metadata about ontology classes.
-    """
+       Returns:
+       --------
+       pandas.DataFrame or list of dict
+           Metadata about ontology classes.
+       """
     g = Graph()
 
-    # Determine RDF format based on file extension
-    format_map = {"owl": "xml", "ttl": "turtle", "rdf": "xml", "n3": "n3", "jsonld": "json-ld", "nt": "nt"}
+    # Determine format based on file extension
     file_extension = file_path.split('.')[-1].lower()
+    format_map = {
+        "owl": "xml",
+        "ttl": "turtle",
+        "rdf": "xml",
+        "n3": "n3",
+        "jsonld": "json-ld",
+        "nt": "nt"
+    }
     rdf_format = format_map.get(file_extension, "xml")
 
     try:
         g.parse(file_path, format=rdf_format)
     except Exception as e:
         logger.error(f"Error parsing file: {e}")
-        return None
+        try:
+            # Try alternative format if parsing fails
+            alternative_format = "xml" if rdf_format != "xml" else "turtle"
+            logger.info(f"Trying alternative format: {alternative_format}")
+            g.parse(file_path, format=alternative_format)
+        except Exception as e2:
+            logger.error(f"Failed to parse with alternative format: {e2}")
+            return None
 
+
+    filename = os.path.basename(file_path)
+    ontology_name = filename.split('.')[0].lower()
+
+    # Try to determine ontology name from the ontology IRI if available
+    for ont in g.subjects(RDF.type, OWL.Ontology):
+        # Get ontology IRI
+        ont_str = str(ont)
+
+        # Parse the ontology IRI to extract a better name
+        parsed_uri = urlparse(ont_str)
+        path_parts = parsed_uri.path.strip('/').split('/')
+
+        if path_parts:
+            # Use the last meaningful segment
+            for part in reversed(path_parts):
+                if part and not part.endswith(('.owl', '.rdf', '.ttl')):
+                    ontology_name = part.lower()
+                    break
+
+        # Check if there's an explicit ontology label
+        for label in g.objects(ont, RDFS.label):
+            label_str = str(label).lower()
+            # Extract the main part of the ontology name from the label
+            match = re.search(r'(\w+)\s+ontology', label_str)
+            if match:
+                ontology_name = match.group(1)
+            else:
+                words = label_str.split()
+                if len(words) > 0:
+                    ontology_name = words[0]
+            break
+
+    # Define important annotation properties to extract
+    annotation_properties = [
+        RDFS.label,
+        RDFS.comment,
+        RDFS.isDefinedBy,
+        RDFS.seeAlso,  # Additional resources or references
+        SKOS.definition,
+        SKOS.prefLabel,
+        SKOS.altLabel,
+        SKOS.notation,
+        SKOS.broader,  # More general concept
+        SKOS.narrower,  # More specific concept
+        SKOS.related,  # Related concepts
+        DC.title,
+        DC.description,
+        DC.subject,  # The subject or domain of the class
+        DC.coverage,  # The scope of the class
+        DCT.title,
+        DCT.description,
+        OWL.versionInfo,
+        OWL.deprecated,
+        OWL.priorVersion,
+        OWL.incompatibleWith,
+        URIRef("http://purl.obolibrary.org/obo/IAO_0000115"),  # definition
+        URIRef("http://purl.obolibrary.org/obo/IAO_0000111"),  # preferred label
+        URIRef("http://purl.obolibrary.org/obo/IAO_0000112"),  # example of usage
+        URIRef("http://purl.obolibrary.org/obo/IAO_0000118"),  # alternative term
+        IAO_EDITORS_NOTE,  # Editor's note
+        IAO_CURATORS_NOTE,  # Curator's note
+        URIRef("http://purl.obolibrary.org/obo/IAO_0000232"),  # curator comment
+    ]
+
+    # Add synonym properties - these are commonly used in ontologies
+    synonym_properties = [
+        URIRef("http://purl.obolibrary.org/obo/IAO_0000118"),  # alternative term
+        URIRef("http://www.geneontology.org/formats/oboInOwl#hasExactSynonym"),
+        URIRef("http://www.geneontology.org/formats/oboInOwl#hasRelatedSynonym"),
+        URIRef("http://www.geneontology.org/formats/oboInOwl#hasNarrowSynonym"),
+        URIRef("http://www.geneontology.org/formats/oboInOwl#hasBroadSynonym"),
+        URIRef("http://purl.org/obo/owl/oboInOwl#hasExactSynonym"),
+        URIRef("http://purl.org/obo/owl/oboInOwl#hasRelatedSynonym"),
+        URIRef("http://purl.org/obo/owl/oboInOwl#hasNarrowSynonym"),
+        URIRef("http://purl.org/obo/owl/oboInOwl#hasBroadSynonym"),
+        SKOS.exactMatch,
+        SKOS.closeMatch,
+        SKOS.relatedMatch,
+        SKOS.broadMatch,
+        SKOS.narrowMatch,
+        SKOS.related,
+        SKOS.altLabel,
+    ]
+
+    # Lists to store class data
     classes_data = []
-    all_classes = set()
+
+    # Extract classes (both OWL classes and RDFS classes)
     class_types = [OWL.Class, RDFS.Class]
+    all_classes = set()
 
     for class_type in class_types:
         for cls in g.subjects(RDF.type, class_type):
             all_classes.add(cls)
 
+    # Also check for implicit classes (subjects of rdfs:subClassOf)
+    for s, p, o in g.triples((None, RDFS.subClassOf, None)):
+        all_classes.add(s)
+        all_classes.add(o)
+
+    # Process each class
     for cls in all_classes:
+        # Skip blank nodes and non-URI classes
         if not isinstance(cls, URIRef):
             continue
 
+        # Extract class name intelligently
         class_uri = str(cls)
-        class_name = class_uri.split("/")[-1] if "/" in class_uri else class_uri
 
+        # Extract local name from URI
+        if '#' in class_uri:
+            class_name = class_uri.split('#')[-1]
+        elif '/' in class_uri:
+            class_name = class_uri.split('/')[-1]
+        else:
+            class_name = class_uri
+
+        # If an OBO class, extract the proper identifier
+        if class_uri.startswith("http://purl.obolibrary.org/obo/"):
+            match = re.search(r'([A-Za-z]+)_\d+', class_name)
+            if match:
+                ontology_name = match.group(1).lower()
+
+        # Initialize class record
         class_record = {
             'class_id': class_name,
             'class_uri': class_uri,
-            'label': None,
-            'definition': None,
-            'synonyms': []
+            'ontology': ontology_name,
+            'equivalent_to': [],
+            'broader': [],  # SKOS broader concepts
+            'narrower': [],  # SKOS narrower concepts
+            'related': [],  # SKOS related concepts
         }
 
-        # Extract label
+        # Extract labels first (priority)
         labels = list(g.objects(cls, RDFS.label))
+        if not labels:
+            # Try alternative label properties
+            for label_prop in [SKOS.prefLabel, DC.title, DCT.title,
+                               URIRef("http://purl.obolibrary.org/obo/IAO_0000111")]:
+                labels = list(g.objects(cls, label_prop))
+                if labels:
+                    break
+
         if labels:
             class_record['label'] = str(labels[0])
+        else:
+            class_record['label'] = class_name
 
-        # Extract definition
-        definitions = list(g.objects(cls, RDFS.comment))
+        # Extract definitions
+        definitions = []
+        for def_prop in [SKOS.definition, DC.description, DCT.description, RDFS.comment,
+                         URIRef("http://purl.obolibrary.org/obo/IAO_0000115")]:
+            for defn in g.objects(cls, def_prop):
+                if str(defn) not in definitions:
+                    definitions.append(str(defn))
+
         if definitions:
-            class_record['definition'] = str(definitions[0])
+            class_record['definition'] = definitions[0]  # Primary definition
+            if len(definitions) > 1:
+                class_record['alt_definitions'] = definitions[1:]  # Alternative definitions
 
-        # Extract synonyms
-        synonym_properties = [SKOS.altLabel, IAO_EDITORS_NOTE]
-        for syn_prop in synonym_properties:
-            for syn in g.objects(cls, syn_prop):
-                class_record['synonyms'].append(str(syn))
+        # Extract SKOS broader concepts
+        for broader in g.objects(cls, SKOS.broader):
+            if isinstance(broader, URIRef):
+                broader_uri = str(broader)
+                class_record['broader'].append(broader_uri)
 
+        # Extract SKOS narrower concepts
+        for narrower in g.objects(cls, SKOS.narrower):
+            if isinstance(narrower, URIRef):
+                narrower_uri = str(narrower)
+                class_record['narrower'].append(narrower_uri)
+
+        # Extract SKOS related concepts
+        for related in g.objects(cls, SKOS.related):
+            if isinstance(related, URIRef):
+                related_uri = str(related)
+                class_record['related'].append(related_uri)
+
+        # Extract equivalent classes
+        for eq_class in g.objects(cls, OWL.equivalentClass):
+            if isinstance(eq_class, URIRef):
+                class_record['equivalent_to'].append(str(eq_class))
+
+                # Extract editor's note
+        editors_notes = []
+        for note in g.objects(cls, IAO_EDITORS_NOTE):
+            editors_notes.append(str(note))
+        if editors_notes:
+            class_record['editors_note'] = editors_notes
+
+        # Extract curator's note
+        curators_notes = []
+        for note in g.objects(cls, IAO_CURATORS_NOTE):
+            curators_notes.append(str(note))
+        if curators_notes:
+            class_record['curators_note'] = curators_notes
+
+        # Extract description
+        descriptions = []
+        for desc_prop in [DC.description, DCT.description]:
+            for desc in g.objects(cls, desc_prop):
+                descriptions.append(str(desc))
+        if descriptions:
+            class_record['description'] = descriptions[0] if len(descriptions) == 1 else descriptions
+
+        # Extract synonyms - categorized by type
+        exact_synonyms = []
+        related_synonyms = []
+        narrow_synonyms = []
+        broad_synonyms = []
+        alt_labels = []
+
+        # Check for exact synonyms
+        for exact_syn_prop in [
+            URIRef("http://www.geneontology.org/formats/oboInOwl#hasExactSynonym"),
+            URIRef("http://purl.org/obo/owl/oboInOwl#hasExactSynonym"),
+            SKOS.exactMatch
+        ]:
+            for syn in g.objects(cls, exact_syn_prop):
+                if str(syn) not in exact_synonyms:
+                    exact_synonyms.append(str(syn))
+
+        # Check for related synonyms
+        for related_syn_prop in [
+            URIRef("http://www.geneontology.org/formats/oboInOwl#hasRelatedSynonym"),
+            URIRef("http://purl.org/obo/owl/oboInOwl#hasRelatedSynonym"),
+            SKOS.relatedMatch,
+            SKOS.related
+        ]:
+            for syn in g.objects(cls, related_syn_prop):
+                if str(syn) not in related_synonyms:
+                    related_synonyms.append(str(syn))
+
+        # Check for narrow synonyms
+        for narrow_syn_prop in [
+            URIRef("http://www.geneontology.org/formats/oboInOwl#hasNarrowSynonym"),
+            URIRef("http://purl.org/obo/owl/oboInOwl#hasNarrowSynonym"),
+            SKOS.narrowMatch
+        ]:
+            for syn in g.objects(cls, narrow_syn_prop):
+                if str(syn) not in narrow_synonyms:
+                    narrow_synonyms.append(str(syn))
+
+        # Check for broad synonyms
+        for broad_syn_prop in [
+            URIRef("http://www.geneontology.org/formats/oboInOwl#hasBroadSynonym"),
+            URIRef("http://purl.org/obo/owl/oboInOwl#hasBroadSynonym"),
+            SKOS.broadMatch
+        ]:
+            for syn in g.objects(cls, broad_syn_prop):
+                if str(syn) not in broad_synonyms:
+                    broad_synonyms.append(str(syn))
+
+        # Check for alternative labels/terms
+        for alt_label_prop in [SKOS.altLabel, URIRef("http://purl.obolibrary.org/obo/IAO_0000118")]:
+            for alt in g.objects(cls, alt_label_prop):
+                alt_str = str(alt)
+                if alt_str not in alt_labels:
+                    alt_labels.append(alt_str)
+
+        # Add synonyms to the class record
+        if exact_synonyms:
+            class_record['exact_synonyms'] = exact_synonyms
+        if related_synonyms:
+            class_record['related_synonyms'] = related_synonyms
+        if narrow_synonyms:
+            class_record['narrow_synonyms'] = narrow_synonyms
+        if broad_synonyms:
+            class_record['broad_synonyms'] = broad_synonyms
+        if alt_labels:
+            class_record['alt_labels'] = alt_labels
+
+        # Combine all types of synonyms into one field for convenience
+        all_synonyms = exact_synonyms + related_synonyms + narrow_synonyms + broad_synonyms + alt_labels
+        if all_synonyms:
+            class_record['all_synonyms_combined'] = list(set(all_synonyms))  # Remove duplicates
+
+        # Add the class record to our collection
         classes_data.append(class_record)
 
-    return pd.DataFrame(classes_data) if output_format == "dataframe" else classes_data
+    # Return the data in the requested format
+    if output_format == "dataframe":
+        return pd.DataFrame(classes_data)
+    else:  # Return as dict/list
+        return classes_data
 
 
 def process_ontology(file_path, output_file=None):
     """ Ontology Metadata Extraction Module
 
-    This module provides functionality to extract and process metadata from ontology files
-    in various RDF formats (OWL, TTL, RDF, etc.). It supports extracting labels, synonyms,
-    annotations, and relationships among ontology classes.
+       This module provides functionality to extract and process metadata from ontology files
+       in various RDF formats (OWL, TTL, RDF, etc.). It supports extracting labels, synonyms,
+       annotations, and relationships among ontology classes.
 
-    Finally, the result is saved into a CSV file.
+       Finally, the result is saved into a CSV file.
 
-    Parameters:
-    -----------
-    file_path : str
-        Path to the ontology file (OWL, RDF, TTL, etc.).
-    output_file : str, optional
-        Path to save the processed metadata as a CSV file.
+       Parameters:
+       -----------
+       file_path : str
+           Path to the ontology file (OWL, RDF, TTL, etc.).
+       output_file : str, optional
+           Path to save the processed metadata as a CSV file.
 
-    Returns:
-    --------
-    pandas.DataFrame
-        Extracted ontology metadata.
+       Returns:
+       --------
+       pandas.DataFrame
+           Extracted ontology metadata.
 
-    Example output for the cell ontology
-    class_id	class_uri	type	equivalent_to	broader	narrower	related	label	definition	related_synonyms	synonyms	exact_synonyms	alt_definitions	narrow_synonyms	broad_synonyms	editors_note	description	consider	curators_note
-    UBERON_0009571	http://purl.obolibrary.org/obo/UBERON_0009571	uberon	[]	[]	[]	[]	ventral midline	In protostomes (such as insects, snails and worms) as well as deuterostomes (vertebrates), the midline is an embryonic region that functions in patterning of the adjacent nervous tissue. The ventral midline in insects is a cell population extending along the ventral surface of the embryo and is the region from which cells detach to form the ventrally located nerve cords. In vertebrates, the midline is originally located dorsally. During development, it folds inwards and becomes the ventral part of the dorsally located neural tube and is then called the ventral midline, or floor plate.	[]	[]	[]	[]	[]	[]	[]		[]	[]
-    GO_2000973	http://purl.obolibrary.org/obo/GO_2000973	go	[]	[]	[]	[]	regulation of pro-B cell differentiation	Any process that modulates the frequency, rate or extent of pro-B cell differentiation.	['regulation of pro-B cell development']	['regulation of pro-B cell development', 'regulation of pro-B lymphocyte differentiation']	['regulation of pro-B lymphocyte differentiation']	[]	[]	[]	[]		[]	[]
-    CL_4033072	http://purl.obolibrary.org/obo/CL_4033072	cl	[]	[]	[]	[]	cycling gamma-delta T cell	A(n) gamma-delta T cell that is cycling.	[]	['proliferating gamma-delta T cell']	['proliferating gamma-delta T cell']	[]	[]	[]	[]		[]	[]
-    """
+       Example output for the cell ontology
+       class_id	class_uri	type	equivalent_to	broader	narrower	related	label	definition	related_synonyms	synonyms	exact_synonyms	alt_definitions	narrow_synonyms	broad_synonyms	editors_note	description	consider	curators_note
+       UBERON_0009571	http://purl.obolibrary.org/obo/UBERON_0009571	uberon	[]	[]	[]	[]	ventral midline	In protostomes (such as insects, snails and worms) as well as deuterostomes (vertebrates), the midline is an embryonic region that functions in patterning of the adjacent nervous tissue. The ventral midline in insects is a cell population extending along the ventral surface of the embryo and is the region from which cells detach to form the ventrally located nerve cords. In vertebrates, the midline is originally located dorsally. During development, it folds inwards and becomes the ventral part of the dorsally located neural tube and is then called the ventral midline, or floor plate.	[]	[]	[]	[]	[]	[]	[]		[]	[]
+       GO_2000973	http://purl.obolibrary.org/obo/GO_2000973	go	[]	[]	[]	[]	regulation of pro-B cell differentiation	Any process that modulates the frequency, rate or extent of pro-B cell differentiation.	['regulation of pro-B cell development']	['regulation of pro-B cell development', 'regulation of pro-B lymphocyte differentiation']	['regulation of pro-B lymphocyte differentiation']	[]	[]	[]	[]		[]	[]
+       CL_4033072	http://purl.obolibrary.org/obo/CL_4033072	cl	[]	[]	[]	[]	cycling gamma-delta T cell	A(n) gamma-delta T cell that is cycling.	[]	['proliferating gamma-delta T cell']	['proliferating gamma-delta T cell']	[]	[]	[]	[]		[]	[]
+       """
+    # Extract metadata
     df = extract_ontology_metadata(file_path, output_format="dataframe")
 
     if df is None:
         logger.error(f"Failed to process ontology file: {file_path}")
         return None
 
+    columns_to_keep = [
+        'class_id', 'class_uri', 'ontology',
+        'equivalent_to', 'broader', 'narrower', 'related',
+        'label', 'definition', 'related_synonyms', 'all_synonyms_combined',
+        'exact_synonyms', 'alt_definitions', 'narrow_synonyms',
+        'broad_synonyms', 'editors_note', 'description', 'curators_note'
+    ]
+
+    # Ensure list columns are properly formatted
+    list_columns = [
+        'synonyms', 'exact_synonyms', 'related_synonyms', 'narrow_synonyms',
+        'broad_synonyms', 'alt_labels',
+        'equivalent_to', 'broader', 'narrower', 'related',
+        'editors_note', 'curators_note', 'alt_definitions'
+    ]
+
+    for col in list_columns:
+        if col in df.columns:
+            # Convert any non-list values to lists
+            df[col] = df[col].apply(
+                lambda x: x if isinstance(x, list) else [str(x)] if pd.notna(x) else []
+            )
+
+    # Keep only columns that exist in the dataframe and are in the columns_to_keep list
+    available_columns = [col for col in columns_to_keep if col in df.columns]
+    df = df[available_columns]
+
+    # Save to file if requested
     if output_file:
         df.to_csv(output_file, index=False)
-        logger.info(f"Ontology metadata saved to {output_file}")
+        logger.info(f"Saved ontology metadata to {output_file}")
 
     return df
+
+
+
+
+
+
