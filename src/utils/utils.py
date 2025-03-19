@@ -42,6 +42,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+ONTOLOGY_DATABASE = "ontology_database"
 def get_weaviate_client():
     """
     Establishes a connection to a Weaviate instance using environment variables.
@@ -91,19 +92,19 @@ def create_ontology_collection(client):
         client (weaviate.Client): A Weaviate client instance.
 
     Returns:
-        bool: True if the collection was created, False if it already exists.
+        dict: with boolean value indicating whether an ontology collection is created or exists and a message
     """
-    collection_exists = client.collections.get("ontology_database").exists()
+    collection_exists = client.collections.get(ONTOLOGY_DATABASE).exists()
 
     if collection_exists:
         logger.info("Ontology collection already exists. Skipping creation.")
-        return False
+        return {"status":True, "message":"Ontology collection already exists."}
 
-    ollama_endpoint = os.getenv("OLLAMA_API_ENDPOINT", "http://localhost:11434")
+    ollama_endpoint = os.getenv("OLLAMA_API_ENDPOINT", "http://host.docker.internal:11434")
     ollama_model = os.getenv("OLLAMA_MODEL", "nomic-embed-text")
 
     client.collections.create(
-        name="ontology_database",
+        name=ONTOLOGY_DATABASE,
         vectorizer_config=Configure.Vectorizer.text2vec_ollama(
             api_endpoint=ollama_endpoint,
             model=ollama_model,
@@ -141,7 +142,82 @@ def create_ontology_collection(client):
         ),
     )
     logger.info("Ontology collection created successfully.")
-    return True
+    return {"status":True, "message":"Ontology collection created successfully."}
+
+
+def hybrid_search(client, query_text, alpha=0.5, limit=3):
+    """
+    Performs a hybrid search (BM25 + Vector Search) on the Ontology collection.
+
+    Args:
+        client (weaviate.Client): A Weaviate client instance.
+        query_text (str): The search query.
+        alpha (float): The balance factor between BM25 (0) and Vector Search (1).
+        limit (int): The maximum number of results to return.
+
+    Returns:
+        list: A list of matching ontology records.
+    """
+    collection = client.collections.get(ONTOLOGY_DATABASE)
+    if not collection.exists():
+        logger.error("The Ontology collection does not exist.")
+        return []
+
+    response = collection.query.hybrid(
+        query=query_text,
+        alpha=alpha,  # Balance between BM25 (0) and Vector search (1)
+        limit=limit,
+        return_properties=[
+            "class_id", "class_uri", "ontology", "label", "definition", "all_synonyms"
+        ]
+    )
+
+    results = response.objects
+    return results
+
+def insert_ontology_data(client, data):
+    """
+    Inserts ontology data into the 'Ontology' collection in Weaviate.
+
+    Args:
+        client (weaviate.Client): A Weaviate client instance.
+        data (list): A list of dictionaries representing ontology data.
+
+    Returns:
+        None
+    """
+    collection = client.collections.get(ONTOLOGY_DATABASE)
+    if not collection.exists():
+        logger.info("The Ontology database does not exist, creating one.")
+        create_ontology_collection(client)
+
+    for entry in data:
+        # Ensure all optional fields exist to prevent errors
+        entry = {
+            "class_id": entry.get("class_id"),
+            "class_uri": entry.get("class_uri"),
+            "ontology": entry.get("ontology"),
+            "equivalent_to": entry.get("equivalent_to", []),
+            "broader": entry.get("broader", []),
+            "narrower": entry.get("narrower", []),
+            "related": entry.get("related", []),
+            "label": entry.get("label"),
+            "definition": entry.get("definition"),
+            "related_synonyms": entry.get("related_synonyms", []),
+            "all_synonyms": entry.get("all_synonyms", []),
+            "exact_synonyms": entry.get("exact_synonyms", []),
+            "alt_definitions": entry.get("alt_definitions", []),
+            "narrow_synonyms": entry.get("narrow_synonyms", []),
+            "broad_synonyms": entry.get("broad_synonyms", []),
+            "editors_note": entry.get("editors_note", ""),
+            "description": entry.get("description", ""),
+            "curators_note": entry.get("curators_note", "")
+        }
+
+
+        collection.data.insert(entry)
+
+    logger.info(f"Inserted {len(data)} records into the Ontology collection.")
 
 
 def required_config_exists(data: dict, type: str) -> bool:
