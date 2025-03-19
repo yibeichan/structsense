@@ -23,9 +23,16 @@ from typing import Union, Dict, List
 import yaml
 from rdflib import Graph, RDF, RDFS, OWL, URIRef, Namespace
 import pandas as pd
-import os
 import re
+import os
 from urllib.parse import urlparse
+import weaviate
+from weaviate.classes.init import AdditionalConfig, Timeout, Auth
+from dotenv import load_dotenv
+
+# Load environment variables from a .env file if present
+load_dotenv()
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,6 +40,46 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
+
+
+def get_weaviate_client():
+    """
+    Establishes a connection to a Weaviate instance using environment variables.
+
+    Returns:
+        weaviate.Client: A Weaviate client instance.
+
+    Raises:
+        ValueError: If any required environment variables are missing.
+    """
+    http_host = os.getenv("WEAVIATE_HTTP_HOST", "localhost")
+    http_port = int(os.getenv("WEAVIATE_HTTP_PORT", 8080))
+    http_secure = os.getenv("WEAVIATE_HTTP_SECURE", "False").lower() == "true"
+
+    grpc_host = os.getenv("WEAVIATE_GRPC_HOST", "localhost")
+    grpc_port = int(os.getenv("WEAVIATE_GRPC_PORT", 50051))
+    grpc_secure = os.getenv("WEAVIATE_GRPC_SECURE", "False").lower() == "true"
+
+    api_key = os.getenv("WEAVIATE_API_KEY")
+    if not api_key:
+        raise ValueError("WEAVIATE_API_KEY environment variable is required.")
+
+    timeout_init = int(os.getenv("WEAVIATE_TIMEOUT_INIT", 30))
+    timeout_query = int(os.getenv("WEAVIATE_TIMEOUT_QUERY", 60))
+    timeout_insert = int(os.getenv("WEAVIATE_TIMEOUT_INSERT", 120))
+
+    return weaviate.connect_to_custom(
+        http_host=http_host,
+        http_port=http_port,
+        http_secure=http_secure,
+        grpc_host=grpc_host,
+        grpc_port=grpc_port,
+        grpc_secure=grpc_secure,
+        auth_credentials=Auth.api_key(api_key),
+        additional_config=AdditionalConfig(
+            timeout=Timeout(init=timeout_init, query=timeout_query, insert=timeout_insert)
+        )
+    )
 
 
 def required_config_exists(data: dict, type: str) -> bool:
