@@ -24,6 +24,7 @@ import yaml
 from rdflib import Graph, RDF, RDFS, OWL, URIRef, Namespace
 import pandas as pd
 import re
+from weaviate.util import generate_uuid5
 import os
 from urllib.parse import urlparse
 import weaviate
@@ -110,64 +111,77 @@ def get_weaviate_client():
 
 def create_ontology_collection(client):
     """
-    Creates an 'ontology_database' collection with Ollama embeddings and a vector index for ontology database.
+    Creates an 'ontology_database' collection with Ollama embeddings and a vector index.
 
     Args:
         client (weaviate.Client): A Weaviate client instance.
 
     Returns:
-        dict: with boolean value indicating whether an ontology collection is created or exists and a message
+        dict: Dictionary containing status (boolean) and a message.
     """
-    collection_exists = client.collections.get(ONTOLOGY_DATABASE).exists()
+    try:
+        # Check if the collection already exists
+        collection = client.collections.get(ONTOLOGY_DATABASE)
+        if collection.exists():
+            logger.info("Ontology collection already exists. Skipping creation.")
+            return {"status": True, "message": "Ontology collection already exists."}
 
-    if collection_exists:
-        logger.info("Ontology collection already exists. Skipping creation.")
-        return {"status":True, "message":"Ontology collection already exists."}
+        # Retrieve Ollama configuration from environment variables
+        ollama_endpoint = os.getenv("OLLAMA_API_ENDPOINT", "http://host.docker.internal:11434")
+        ollama_model = os.getenv("OLLAMA_MODEL", "nomic-embed-text")
 
-    ollama_endpoint = os.getenv("OLLAMA_API_ENDPOINT", "http://host.docker.internal:11434")
-    ollama_model = os.getenv("OLLAMA_MODEL", "nomic-embed-text")
 
-    client.collections.create(
-        name=ONTOLOGY_DATABASE,
-        vectorizer_config=Configure.Vectorizer.text2vec_ollama(
-            api_endpoint=ollama_endpoint,
-            model=ollama_model,
-        ),
-        properties=[
-            Property(name="class_id", data_type=DataType.TEXT),  # Unique class identifier
-            Property(name="class_uri", data_type=DataType.TEXT),  # Full IRI reference
-            Property(name="ontology", data_type=DataType.TEXT),  # Ontology name
-            Property(name="equivalent_to", data_type=DataType.TEXT_ARRAY, optional=True),  # Equivalent concepts
-            Property(name="broader", data_type=DataType.TEXT_ARRAY, optional=True),  # SKOS broader concepts
-            Property(name="narrower", data_type=DataType.TEXT_ARRAY, optional=True),  # SKOS narrower concepts
-            Property(name="related", data_type=DataType.TEXT_ARRAY, optional=True),  # SKOS related concepts
-            Property(name="label", data_type=DataType.TEXT),  # Concept label
-            Property(name="definition", data_type=DataType.TEXT),  # Concept definition
-            Property(name="related_synonyms", data_type=DataType.TEXT_ARRAY, optional=True),  # Related synonyms
-            Property(name="all_synonyms", data_type=DataType.TEXT_ARRAY, optional=True),  # All combined synonyms
-            Property(name="exact_synonyms", data_type=DataType.TEXT_ARRAY, optional=True),  # Exact synonyms
-            Property(name="alt_definitions", data_type=DataType.TEXT_ARRAY, optional=True),  # Alternative definitions
-            Property(name="narrow_synonyms", data_type=DataType.TEXT_ARRAY, optional=True),  # Narrow synonyms
-            Property(name="broad_synonyms", data_type=DataType.TEXT_ARRAY, optional=True),  # Broad synonyms
-            Property(name="editors_note", data_type=DataType.TEXT, optional=True),  # Editor notes
-            Property(name="description", data_type=DataType.TEXT, optional=True),  # Additional descriptions
-            Property(name="curators_note", data_type=DataType.TEXT, optional=True),  # Notes from curators
-        ],
-        # Configure the vector index with Scalar Quantization (SQ)
-        vector_index_config=Configure.VectorIndex.hnsw(
-            distance_metric=VectorDistances.COSINE,
-            quantizer=Configure.VectorIndex.Quantizer.sq(),
-        ),
-        # Configure the inverted index for keyword search (BM25)
-        inverted_index_config=Configure.inverted_index(
-            index_null_state=True,
-            index_property_length=True,
-            index_timestamps=True,
-        ),
-    )
-    logger.info("Ontology collection created successfully.")
-    return {"status":True, "message":"Ontology collection created successfully."}
+        client.collections.create(
+            name=ONTOLOGY_DATABASE,
+            vectorizer_config=Configure.Vectorizer.text2vec_ollama(
+                api_endpoint=ollama_endpoint,
+                model=ollama_model,
+            ),
+            properties=[
+                Property(name="class_id", data_type=DataType.TEXT),  # Unique class identifier
+                Property(name="class_uri", data_type=DataType.TEXT),  # Full IRI reference
+                Property(name="ontology", data_type=DataType.TEXT),  # Ontology name
+                Property(name="equivalent_to", data_type=DataType.TEXT_ARRAY, optional=True),  # Equivalent concepts
+                Property(name="broader", data_type=DataType.TEXT_ARRAY, optional=True),  # SKOS broader concepts
+                Property(name="narrower", data_type=DataType.TEXT_ARRAY, optional=True),  # SKOS narrower concepts
+                Property(name="related", data_type=DataType.TEXT_ARRAY, optional=True),  # SKOS related concepts
+                Property(name="label", data_type=DataType.TEXT),  # Concept label
+                Property(name="definition", data_type=DataType.TEXT),  # Concept definition
+                Property(name="related_synonyms", data_type=DataType.TEXT_ARRAY, optional=True),  # Related synonyms
+                Property(name="all_synonyms_combined", data_type=DataType.TEXT_ARRAY, optional=True),  # All combined synonyms
+                Property(name="exact_synonyms", data_type=DataType.TEXT_ARRAY, optional=True),  # Exact synonyms
+                Property(name="alt_definitions", data_type=DataType.TEXT_ARRAY, optional=True),  # Alternative definitions
+                Property(name="narrow_synonyms", data_type=DataType.TEXT_ARRAY, optional=True),  # Narrow synonyms
+                Property(name="broad_synonyms", data_type=DataType.TEXT_ARRAY, optional=True),  # Broad synonyms
+                Property(name="editors_note", data_type=DataType.TEXT, optional=True),  # Editor notes
+                Property(name="description", data_type=DataType.TEXT, optional=True),  # Additional descriptions
+                Property(name="curators_note", data_type=DataType.TEXT, optional=True),  # Notes from curators
+            ],
+            vector_index_config=Configure.VectorIndex.hnsw(
+                distance_metric=VectorDistances.COSINE,
+                quantizer=Configure.VectorIndex.Quantizer.sq(),
+            ),
+            inverted_index_config=Configure.inverted_index(
+                index_null_state=True,
+                index_property_length=True,
+                index_timestamps=True,
+            ),
+        )
 
+        logger.info("Ontology collection created successfully.")
+        return {"status": True, "message": "Ontology collection created successfully."}
+
+    except weaviate.exceptions.WeaviateConnectionError as ce:
+        logger.error(f"ConnectionError: Failed to connect to Weaviate - {ce}")
+        return {"status": False, "message": "Failed to connect to Weaviate. Check host, ports, and API key."}
+
+    except weaviate.exceptions.WeaviateBaseError as api_error:
+        logger.error(f"Weaviate API Error: {api_error}")
+        return {"status": False, "message": f"Weaviate error occurred: {api_error}"}
+
+    except Exception as e:
+        logger.error(f"Unexpected Error: {e}")
+        return {"status": False, "message": "An unexpected error occurred while creating the Ontology collection."}
 
 def hybrid_search(client, query_text, alpha=0.5, limit=3):
     """
@@ -180,68 +194,134 @@ def hybrid_search(client, query_text, alpha=0.5, limit=3):
         limit (int): The maximum number of results to return.
 
     Returns:
-        list: A list of matching ontology records.
+        dict: A dictionary containing status (boolean), message (str), and search results (list).
     """
-    collection = client.collections.get(ONTOLOGY_DATABASE)
-    if not collection.exists():
-        logger.error("The Ontology collection does not exist.")
-        return []
+    try:
+        if not isinstance(query_text, str) or not query_text.strip():
+            raise ValueError("Query text must be a non-empty string.")
 
-    response = collection.query.hybrid(
-        query=query_text,
-        alpha=alpha,  # Balance between BM25 (0) and Vector search (1)
-        limit=limit,
-        return_properties=[
-            "class_id", "class_uri", "ontology", "label", "definition", "all_synonyms"
-        ]
-    )
+        if not (0.0 <= alpha <= 1.0):
+            raise ValueError("Alpha must be between 0 and 1.")
 
-    results = response.objects
-    return results
+        if not isinstance(limit, int) or limit <= 0:
+            raise ValueError("Limit must be a positive integer.")
 
-def insert_ontology_data(client, data):
+
+        collection = client.collections.get(ONTOLOGY_DATABASE)
+        if not collection.exists():
+            logger.error("The Ontology collection does not exist.")
+            return {"status": False, "message": "Ontology collection does not exist.", "data": []}
+
+        # hybrid search
+        response = collection.query.hybrid(
+            query=query_text,
+            alpha=alpha,  # Balance between BM25 (0)  and Vector search (1)
+            limit=limit,
+            return_properties=["class_id", "class_uri", "ontology", "label", "definition", "all_synonyms_combined"]
+        )
+
+        results = response.objects if response.objects else []
+        if not results:
+            logger.info("No results found for query: '%s'", query_text)
+            return {"status": True, "message": "No matching results found.", "data": []}
+
+        logger.info("Found %d results for query: '%s'", len(results), query_text)
+        return {"status": True, "message": "Search successful.", "data": results}
+
+
+    except weaviate.exceptions.WeaviateConnectionError as ce:
+        logger.error(f"ConnectionError: {ce}")
+        return {"status": False, "message": "Failed to connect to Weaviate. Check host and network.", "data": []}
+
+    except weaviate.exceptions.WeaviateQueryError as query_error:
+        logger.error(f"Query Error: {query_error}")
+        return {"status": False, "message": f"Weaviate query error occurred: {query_error}", "data": []}
+
+    except Exception as e:
+        logger.error(f"Unexpected Error: {e}")
+        return {"status": False, "message": "An unexpected error occurred during hybrid search.", "data": []}
+
+def batch_insert_ontology_data(client, data, max_errors=1000):
     """
-    Inserts ontology data into the 'Ontology' collection in Weaviate.
+    Inserts ontology data into the collection in Weaviate using dynamic batch processing. for more information regarding
+    batch insertion, see https://weaviate.io/developers/weaviate/manage-data/import
 
     Args:
         client (weaviate.Client): A Weaviate client instance.
         data (list): A list of dictionaries representing ontology data.
+        max_errors (int): Maximum number of errors allowed before stopping.
 
     Returns:
-        None
+        dict: A dictionary with status and message.
     """
-    collection = client.collections.get(ONTOLOGY_DATABASE)
-    if not collection.exists():
-        logger.info("The Ontology database does not exist, creating one.")
-        create_ontology_collection(client)
+    try:
+        # Check if the Ontology collection exists
+        collection = client.collections.get(ONTOLOGY_DATABASE)
+        if not collection.exists():
+            logger.info("Ontology collection does not exist. Creating it.")
+            create_ontology_collection(client)
 
-    for entry in data:
-        # Ensure all optional fields exist to prevent errors
-        entry = {
-            "class_id": entry.get("class_id"),
-            "class_uri": entry.get("class_uri"),
-            "ontology": entry.get("ontology"),
-            "equivalent_to": entry.get("equivalent_to", []),
-            "broader": entry.get("broader", []),
-            "narrower": entry.get("narrower", []),
-            "related": entry.get("related", []),
-            "label": entry.get("label"),
-            "definition": entry.get("definition"),
-            "related_synonyms": entry.get("related_synonyms", []),
-            "all_synonyms": entry.get("all_synonyms", []),
-            "exact_synonyms": entry.get("exact_synonyms", []),
-            "alt_definitions": entry.get("alt_definitions", []),
-            "narrow_synonyms": entry.get("narrow_synonyms", []),
-            "broad_synonyms": entry.get("broad_synonyms", []),
-            "editors_note": entry.get("editors_note", ""),
-            "description": entry.get("description", ""),
-            "curators_note": entry.get("curators_note", "")
-        }
+        if not isinstance(data, list) or not data:
+            raise ValueError("Data must be a non-empty list of dictionaries.")
+
+        inserted_count = 0
+
+        # Start dynamic batch insertion
+        with collection.batch.dynamic() as batch:
+            for entry in data:
+                if not isinstance(entry, dict) or "class_id" not in entry or "label" not in entry:
+                    logger.warning("Skipping invalid entry: %s", entry)
+                    continue
+
+                obj_uuid = generate_uuid5(entry["class_id"])  # Generate deterministic UUID
+
+                batch.add_object(
+                    properties={
+                        "class_id": entry.get("class_id"),
+                        "class_uri": entry.get("class_uri"),
+                        "ontology": entry.get("ontology"),
+                        "equivalent_to": entry.get("equivalent_to", []),
+                        "broader": entry.get("broader", []),
+                        "narrower": entry.get("narrower", []),
+                        "related": entry.get("related", []),
+                        "label": entry.get("label"),
+                        "definition": entry.get("definition"),
+                        "related_synonyms": entry.get("related_synonyms", []),
+                        "all_synonyms_combined": entry.get("all_synonyms_combined", []),
+                        "exact_synonyms": entry.get("exact_synonyms", []),
+                        "alt_definitions": entry.get("alt_definitions", []),
+                        "narrow_synonyms": entry.get("narrow_synonyms", []),
+                        "broad_synonyms": entry.get("broad_synonyms", []),
+                        "editors_note": entry.get("editors_note", ""),
+                        "description": entry.get("description", ""),
+                        "curators_note": entry.get("curators_note", "")
+                    },
+                    uuid=obj_uuid
+                )
+                inserted_count += 1
 
 
-        collection.data.insert(entry)
+                if batch.number_errors > max_errors:
+                    logger.error(f"Batch import stopped due to excessive errors ({batch.number_errors}).")
+                    break
 
-    logger.info(f"Inserted {len(data)} records into the Ontology collection.")
+        # Handle failed objects
+        failed_objects = collection.batch.failed_objects
+        if failed_objects:
+            logger.warning(f"Number of failed imports: {len(failed_objects)}")
+            logger.warning(f" First failed object: {failed_objects[0]}")
+
+        logger.info(f"Successfully inserted {inserted_count}/{len(data)} records in batch mode.")
+        return {"status": True, "message": f"Inserted {inserted_count}/{len(data)} records in batch mode."}
+
+
+    except weaviate.exceptions.WeaviateBaseError as weaviate_error:
+        logger.error(f" Weaviate Error: {weaviate_error}")
+        return {"status": False, "message": f"Weaviate error occurred: {weaviate_error}"}
+
+    except Exception as e:
+        logger.error(f" Unexpected Error: {e}")
+        return {"status": False, "message": "An unexpected error occurred while inserting ontology data in batch mode."}
 
 
 def required_config_exists(data: dict, type: str) -> bool:
