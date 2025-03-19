@@ -29,7 +29,7 @@ from urllib.parse import urlparse
 import weaviate
 from weaviate.classes.init import AdditionalConfig, Timeout, Auth
 from dotenv import load_dotenv
-
+from weaviate.classes.config import Property, DataType, Configure, VectorDistances
 # Load environment variables from a .env file if present
 load_dotenv()
 
@@ -80,6 +80,68 @@ def get_weaviate_client():
             timeout=Timeout(init=timeout_init, query=timeout_query, insert=timeout_insert)
         )
     )
+
+
+
+def create_ontology_collection(client):
+    """
+    Creates an 'ontology_database' collection with Ollama embeddings and a vector index for ontology database.
+
+    Args:
+        client (weaviate.Client): A Weaviate client instance.
+
+    Returns:
+        bool: True if the collection was created, False if it already exists.
+    """
+    collection_exists = client.collections.get("ontology_database").exists()
+
+    if collection_exists:
+        logger.info("Ontology collection already exists. Skipping creation.")
+        return False
+
+    ollama_endpoint = os.getenv("OLLAMA_API_ENDPOINT", "http://localhost:11434")
+    ollama_model = os.getenv("OLLAMA_MODEL", "nomic-embed-text")
+
+    client.collections.create(
+        name="ontology_database",
+        vectorizer_config=Configure.Vectorizer.text2vec_ollama(
+            api_endpoint=ollama_endpoint,
+            model=ollama_model,
+        ),
+        properties=[
+            Property(name="class_id", data_type=DataType.TEXT),  # Unique class identifier
+            Property(name="class_uri", data_type=DataType.TEXT),  # Full IRI reference
+            Property(name="ontology", data_type=DataType.TEXT),  # Ontology name
+            Property(name="equivalent_to", data_type=DataType.TEXT_ARRAY, optional=True),  # Equivalent concepts
+            Property(name="broader", data_type=DataType.TEXT_ARRAY, optional=True),  # SKOS broader concepts
+            Property(name="narrower", data_type=DataType.TEXT_ARRAY, optional=True),  # SKOS narrower concepts
+            Property(name="related", data_type=DataType.TEXT_ARRAY, optional=True),  # SKOS related concepts
+            Property(name="label", data_type=DataType.TEXT),  # Concept label
+            Property(name="definition", data_type=DataType.TEXT),  # Concept definition
+            Property(name="related_synonyms", data_type=DataType.TEXT_ARRAY, optional=True),  # Related synonyms
+            Property(name="all_synonyms", data_type=DataType.TEXT_ARRAY, optional=True),  # All combined synonyms
+            Property(name="exact_synonyms", data_type=DataType.TEXT_ARRAY, optional=True),  # Exact synonyms
+            Property(name="alt_definitions", data_type=DataType.TEXT_ARRAY, optional=True),  # Alternative definitions
+            Property(name="narrow_synonyms", data_type=DataType.TEXT_ARRAY, optional=True),  # Narrow synonyms
+            Property(name="broad_synonyms", data_type=DataType.TEXT_ARRAY, optional=True),  # Broad synonyms
+            Property(name="editors_note", data_type=DataType.TEXT, optional=True),  # Editor notes
+            Property(name="description", data_type=DataType.TEXT, optional=True),  # Additional descriptions
+            Property(name="curators_note", data_type=DataType.TEXT, optional=True),  # Notes from curators
+        ],
+        # Configure the vector index with Scalar Quantization (SQ)
+        vector_index_config=Configure.VectorIndex.hnsw(
+            distance_metric=VectorDistances.COSINE,
+            quantizer=Configure.VectorIndex.Quantizer.sq(),
+        ),
+        # Configure the inverted index for keyword search (BM25)
+        inverted_index_config=Configure.inverted_index(
+            index_null_state=True,
+            index_property_length=True,
+            index_timestamps=True,
+        ),
+    )
+    logger.info("Ontology collection created successfully.")
+    return True
 
 
 def required_config_exists(data: dict, type: str) -> bool:
