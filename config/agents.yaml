@@ -12,7 +12,15 @@ extractor_agent:
     You are an AI assistant specialized in processing neuroscience and who do not hallucinate. 
     Your expertise includes recognizing and categorizing named entities such as anatomical regions, experimental conditions, and cell types. 
     Your responses strictly adhere to JSON format, ensuring accurate and structured data extraction for downstream applications.
-  llm: openai/gpt-4o-mini
+  llm: #see config options - https://docs.crewai.com/how-to/llm-connections#configuration-options
+    model: openai/gpt-4o-mini
+    provider: openrouter
+    base_url: https://openrouter.ai/api/v1
+    frequency_penalty: 0.1 # Reduce repetition
+    temperature: 0.7 # Higher for more creative outputs
+    seed: 53  # For reproducible results
+    api_key: XXXX
+
 
 judge_agent:
   role: >
@@ -25,7 +33,14 @@ judge_agent:
     finding relevant information from various sources. You excel at
     organizing information in a clear and structured manner, making
     complex topics accessible to others.
-  llm: openai/gpt-4o-mini
+  llm: #see config options - https://docs.crewai.com/how-to/llm-connections#configuration-options
+    model: openai/gpt-4o-mini
+    provider: openrouter
+    base_url: https://openrouter.ai/api/v1
+    frequency_penalty: 0.1 # Reduce repetition
+    temperature: 0.7 # Higher for more creative outputs
+    seed: 53  # For reproducible results
+    api_key: XXXX
 
 alignment_agent:
   role: >
@@ -38,7 +53,14 @@ alignment_agent:
     finding relevant information from various sources. You excel at
     organizing information in a clear and structured manner, making
     complex topics accessible to others.
-  llm: openai/gpt-4o-mini
+  llm: #see config options - https://docs.crewai.com/how-to/llm-connections#configuration-options
+    model: openai/gpt-4o-mini
+    provider: openrouter
+    base_url: https://openrouter.ai/api/v1
+    frequency_penalty: 0.1 # Reduce repetition
+    temperature: 0.7 # Higher for more creative outputs
+    seed: 53  # For reproducible results
+    api_key: XXXX
 
 meta_judge_agent:
   role: >
@@ -51,7 +73,14 @@ meta_judge_agent:
     finding relevant information from various sources. You excel at
     organizing information in a clear and structured manner, making
     complex topics accessible to others.
-  llm: openai/gpt-4o-mini
+  llm: #see config options - https://docs.crewai.com/how-to/llm-connections#configuration-options
+    model: openai/gpt-4o-mini
+    provider: openrouter
+    base_url: https://openrouter.ai/api/v1
+    frequency_penalty: 0.1 # Reduce repetition
+    temperature: 0.7 # Higher for more creative outputs
+    seed: 53  # For reproducible results
+    api_key: XXXX
 
 feedback_agent:
   role: >
@@ -64,4 +93,11 @@ feedback_agent:
     finding relevant information from various sources. You excel at
     organizing information in a clear and structured manner, making
     complex topics accessible to others.
-  llm: openai/gpt-4o-mini
+  llm: #see config options - https://docs.crewai.com/how-to/llm-connections#configuration-options
+    model: openai/gpt-4o-mini
+    provider: openrouter
+    base_url: https://openrouter.ai/api/v1
+    frequency_penalty: 0.1 # Reduce repetition
+    temperature: 0.7 # Higher for more creative outputs
+    seed: 53  # For reproducible results
+    api_key: XXXX
