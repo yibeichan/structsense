@@ -17,25 +17,23 @@
 # @Software: PyCharm
 
 
-from crewai import Agent, Task, LLM
+from crewai import Agent, LLM
 
 
-class InformationExtractorAgentCrew:
-    """Information Extractor Crew.
+class InformationExtractorAgent:
+    """Information Extractor Agent Crew.
 
     This crew is responsible for extracting the structured information based on the passed configuration.
     """
 
-    def __init__(self, agents_config, tasks_config):
+    def __init__(self, agents_config):
         """
         Initializes the Information Extractor Crew.
 
         Args:
             agents_config (dict): Dictionary containing configuration for agents.
-            tasks_config (dict): Dictionary containing configuration for tasks.
         """
         self.agents_config = agents_config
-        self.tasks_config = tasks_config
 
     def extractor_agent(self) -> Agent:
         """Creates and returns an extractor agent based on the configuration.
@@ -58,15 +56,3 @@ class InformationExtractorAgentCrew:
             verbose=True,
             llm=LLM(**llm_config),
         )
-
-    def extractor_task(self, agent: Agent) -> Task:
-        """Creates and returns an extraction task assigned to the agent.
-
-        Args:
-            agent (Agent): The agent that will execute the task.
-
-        Returns:
-            Task: A configured CrewAI task.
-        """
-        extractor_task = self.tasks_config.get("extractor_agent_task", {})
-        return Task(config=extractor_task, agent=agent)
