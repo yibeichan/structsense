@@ -1,17 +1,53 @@
 """This module defines CLI commands for the PipePal application."""
 
 import click
+import logging
+from .app import StrucSense
 
-from .app import hello_world as hw_function  # Renamed to avoid conflict
+logger = logging.getLogger(__name__)
 
 
 @click.group()
-def main() -> None:
-    """Define the main CLI group."""
+@click.pass_context
+def cli(ctx):
+    """CLI commands for the Structsense Framework application"""
     pass
 
 
-@main.command()
-def hello_world() -> None:
-    """Execute the hello_world command from the app module."""
-    hw_function()
+@cli.command()
+@click.option(
+    "--agentconfig",
+    required=True,
+    type=str,
+    help=("Path to the agent configuration in YAML file format or dictionary"),
+)
+@click.option(
+    "--taskconfig",
+    required=True,
+    type=str,
+    help=("Path to the agent task configuration in YAML format or or dictionary"),
+)
+@click.option(
+    "--embedderconfig",
+    required=True,
+    type=str,
+    help=("Path to the embedding configuration in YAML format or or dictionary"),
+)
+@click.option(
+    "--source",
+    required=True,
+    help=("The source—whether a file (text or PDF), a folder, or a text string."),
+)
+def extract(agentconfig, taskconfig, embedderconfig, source):
+    """Extract the NER terms along with sentence."""
+    StrucSense(agentconfig, taskconfig, embedderconfig, source)
+    logger.info(
+        f"Processing source: {source} with agent config: {agentconfig} and task config: {taskconfig}"
+    )
+    click.echo(
+        f"Processing source: {source} with agent config: {agentconfig} and task config: {taskconfig}"
+    )
+
+
+if __name__ == "__main__":
+    cli()
