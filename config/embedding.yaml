@@ -1,0 +1,5 @@
+embedder_config:
+  provider: ollama
+  base_url: http://localhost:11434
+  config:
+    model: nomic-embed-text:latest
