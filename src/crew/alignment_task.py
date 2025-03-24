@@ -19,6 +19,7 @@
 from crewai import Agent, Task
 from utils.utils import hybrid_search
 
+
 class ConceptAlignmentTask:
     """Alignment Crew Task.
 

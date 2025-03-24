@@ -231,6 +231,7 @@ def create_ontology_collection(client):
             "message": "An unexpected error occurred while creating the Ontology collection.",
         }
 
+
 def extract_weaviate_properties(weaviate_results):
     """
     Extracts the 'properties' field from a list of Weaviate object results.
@@ -502,7 +503,7 @@ def required_config_exists(data: dict, type: str) -> bool:
     """
     required_keys = {
         "agent": {"role", "goal", "backstory", "llm"},
-        "embedder": {"provider","config"},
+        "embedder": {"provider", "config"},
         "task": {"description", "expected_output", "agent"},
     }
 

@@ -37,7 +37,9 @@ def initialize_alignment(agent_config: Dict, task_config: Dict):
     return alignment_agent, alignment_task
 
 
-def StrucSense(agent_config: str, task_config: str, embedder_config: str, source: str = "asdf"):
+def StrucSense(
+    agent_config: str, task_config: str, embedder_config: str, source: str = "asdf"
+):
     """Runs the CrewAI pipeline for structured knowledge extraction and alignment.
 
     Args:
@@ -63,14 +65,14 @@ def StrucSense(agent_config: str, task_config: str, embedder_config: str, source
             storage=RAGStorage(
                 embedder_config=embedderconfig.get("embedder_config"),
                 type="short_term",
-                path="crew_memory/"
+                path="crew_memory/",
             )
         )
         entity_memory = EntityMemory(
             storage=RAGStorage(
                 embedder_config=embedderconfig.get("embedder_config"),
                 type="short_term",
-                path="crew_memory/"
+                path="crew_memory/",
             )
         )
 
