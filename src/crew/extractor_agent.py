@@ -53,6 +53,7 @@ class InformationExtractorAgent:
             role=role_config,
             goal=goal_config,
             backstory=backstory_config,
+            allow_delegation=False,
             verbose=True,
             llm=LLM(**llm_config),
         )
