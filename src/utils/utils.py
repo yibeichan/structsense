@@ -44,7 +44,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-ONTOLOGY_DATABASE = "ontology_database"
+ONTOLOGY_DATABASE = os.getenv("ONTOLOGY_DATABASE", "ontology_database_agentpy")
 
 
 def get_weaviate_client():
@@ -231,8 +231,29 @@ def create_ontology_collection(client):
             "message": "An unexpected error occurred while creating the Ontology collection.",
         }
 
+def extract_weaviate_properties(weaviate_results):
+    """
+    Extracts the 'properties' field from a list of Weaviate object results.
 
-def hybrid_search(client, query_text, alpha=0.5, limit=3):
+    Args:
+        weaviate_results (list): A list of Weaviate objects, each containing metadata, properties, and other fields.
+
+    Returns:
+        list: A list of dictionaries, where each dictionary represents the properties of a Weaviate object.
+
+    Example:
+        >>> weaviate_results = [
+        ...     Object(properties={'label': 'G8 retinal ganglion cell', 'ontology': 'cl'}),
+        ...     Object(properties={'label': 'parasol ganglion cell of retina', 'ontology': 'cl'})
+        ... ]
+        >>> extract_properties(weaviate_results)
+        [{'label': 'G8 retinal ganglion cell', 'ontology': 'cl'},
+         {'label': 'parasol ganglion cell of retina', 'ontology': 'cl'}]
+    """
+    return [obj.properties for obj in weaviate_results]
+
+
+def hybrid_search(client, query_text, alpha=0.5, limit=5):
     """
     Performs a hybrid search (BM25 + Vector Search) on the Ontology collection.
 
@@ -282,10 +303,10 @@ def hybrid_search(client, query_text, alpha=0.5, limit=3):
         results = response.objects if response.objects else []
         if not results:
             logger.info("No results found for query: '%s'", query_text)
-            return {"status": True, "message": "No matching results found.", "data": []}
+            return []
 
         logger.info("Found %d results for query: '%s'", len(results), query_text)
-        return {"status": True, "message": "Search successful.", "data": results}
+        return extract_weaviate_properties(results)
 
     except weaviate.exceptions.WeaviateConnectionError as ce:
         logger.error(f"ConnectionError: {ce}")
@@ -369,9 +390,9 @@ def batch_insert_ontology_data(client, data, max_errors=1000):
                         "alt_definitions": entry.get("alt_definitions", []),
                         "narrow_synonyms": entry.get("narrow_synonyms", []),
                         "broad_synonyms": entry.get("broad_synonyms", []),
-                        "editors_note": entry.get("editors_note", ""),
+                        "editors_note": entry.get("editors_note", []),
                         "description": entry.get("description", ""),
-                        "curators_note": entry.get("curators_note", ""),
+                        "curators_note": entry.get("curators_note", []),
                     },
                     uuid=obj_uuid,
                 )
