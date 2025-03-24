@@ -43,7 +43,7 @@ class InformationExtractorAgent:
         Returns:
             Agent: A configured CrewAI agent.
         """
-        extractor_config = self.agents_config.get("extractor_agent", {})
+        extractor_config = self.agents_config
         role_config = extractor_config.get("role", "Default Role")
         goal_config = extractor_config.get("goal", "Default Goal")
         backstory_config = extractor_config.get("backstory", "No backstory provided.")

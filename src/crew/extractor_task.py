@@ -61,5 +61,4 @@ class InformationExtractorTask:
         Returns:
             Task: A configured CrewAI task.
         """
-        extractor_task = self.tasks_config.get("extractor_agent_task", {})
-        return Task(config=extractor_task, agent=agent)
+        return Task(config=self.tasks_config, agent=agent)
