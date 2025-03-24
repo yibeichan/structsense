@@ -31,6 +31,7 @@ import weaviate
 from weaviate.classes.init import AdditionalConfig, Timeout, Auth
 from dotenv import load_dotenv
 from weaviate.classes.config import Property, DataType, Configure, VectorDistances
+
 # Load environment variables from a .env file if present
 load_dotenv()
 
@@ -44,6 +45,7 @@ logger = logging.getLogger(__name__)
 
 
 ONTOLOGY_DATABASE = "ontology_database"
+
 
 def get_weaviate_client():
     """
@@ -71,14 +73,14 @@ def get_weaviate_client():
         if not api_key:
             raise ValueError("WEAVIATE_API_KEY environment variable is required.")
 
-
         try:
             timeout_init = int(os.getenv("WEAVIATE_TIMEOUT_INIT", 30))
             timeout_query = int(os.getenv("WEAVIATE_TIMEOUT_QUERY", 60))
             timeout_insert = int(os.getenv("WEAVIATE_TIMEOUT_INSERT", 120))
         except ValueError:
-            raise ValueError("Invalid timeout value. Ensure WEAVIATE_TIMEOUT_* environment variables contain valid integers.")
-
+            raise ValueError(
+                "Invalid timeout value. Ensure WEAVIATE_TIMEOUT_* environment variables contain valid integers."
+            )
 
         client = weaviate.connect_to_custom(
             http_host=http_host,
@@ -89,8 +91,10 @@ def get_weaviate_client():
             grpc_secure=grpc_secure,
             auth_credentials=Auth.api_key(api_key),
             additional_config=AdditionalConfig(
-                timeout=Timeout(init=timeout_init, query=timeout_query, insert=timeout_insert)
-            )
+                timeout=Timeout(
+                    init=timeout_init, query=timeout_query, insert=timeout_insert
+                )
+            ),
         )
         logger.info("✅ Successfully connected to Weaviate")
         return client
@@ -101,12 +105,13 @@ def get_weaviate_client():
 
     except weaviate.exceptions.WeaviateConnectionError as ce:
         logger.error(f"❌ ConnectionError: Failed to connect to Weaviate - {ce}")
-        raise ConnectionError("Failed to connect to Weaviate. Check your host, ports, and security settings.")
+        raise ConnectionError(
+            "Failed to connect to Weaviate. Check your host, ports, and security settings."
+        )
 
     except Exception as e:
         logger.error(f"❌ Unexpected Error: {e}")
         raise RuntimeError("An unexpected error occurred while connecting to Weaviate.")
-
 
 
 def create_ontology_collection(client):
@@ -127,9 +132,10 @@ def create_ontology_collection(client):
             return {"status": True, "message": "Ontology collection already exists."}
 
         # Retrieve Ollama configuration from environment variables
-        ollama_endpoint = os.getenv("OLLAMA_API_ENDPOINT", "http://host.docker.internal:11434")
+        ollama_endpoint = os.getenv(
+            "OLLAMA_API_ENDPOINT", "http://host.docker.internal:11434"
+        )
         ollama_model = os.getenv("OLLAMA_MODEL", "nomic-embed-text")
-
 
         client.collections.create(
             name=ONTOLOGY_DATABASE,
@@ -138,24 +144,60 @@ def create_ontology_collection(client):
                 model=ollama_model,
             ),
             properties=[
-                Property(name="class_id", data_type=DataType.TEXT),  # Unique class identifier
-                Property(name="class_uri", data_type=DataType.TEXT),  # Full IRI reference
+                Property(
+                    name="class_id", data_type=DataType.TEXT
+                ),  # Unique class identifier
+                Property(
+                    name="class_uri", data_type=DataType.TEXT
+                ),  # Full IRI reference
                 Property(name="ontology", data_type=DataType.TEXT),  # Ontology name
-                Property(name="equivalent_to", data_type=DataType.TEXT_ARRAY, optional=True),  # Equivalent concepts
-                Property(name="broader", data_type=DataType.TEXT_ARRAY, optional=True),  # SKOS broader concepts
-                Property(name="narrower", data_type=DataType.TEXT_ARRAY, optional=True),  # SKOS narrower concepts
-                Property(name="related", data_type=DataType.TEXT_ARRAY, optional=True),  # SKOS related concepts
+                Property(
+                    name="equivalent_to", data_type=DataType.TEXT_ARRAY, optional=True
+                ),  # Equivalent concepts
+                Property(
+                    name="broader", data_type=DataType.TEXT_ARRAY, optional=True
+                ),  # SKOS broader concepts
+                Property(
+                    name="narrower", data_type=DataType.TEXT_ARRAY, optional=True
+                ),  # SKOS narrower concepts
+                Property(
+                    name="related", data_type=DataType.TEXT_ARRAY, optional=True
+                ),  # SKOS related concepts
                 Property(name="label", data_type=DataType.TEXT),  # Concept label
-                Property(name="definition", data_type=DataType.TEXT),  # Concept definition
-                Property(name="related_synonyms", data_type=DataType.TEXT_ARRAY, optional=True),  # Related synonyms
-                Property(name="all_synonyms_combined", data_type=DataType.TEXT_ARRAY, optional=True),  # All combined synonyms
-                Property(name="exact_synonyms", data_type=DataType.TEXT_ARRAY, optional=True),  # Exact synonyms
-                Property(name="alt_definitions", data_type=DataType.TEXT_ARRAY, optional=True),  # Alternative definitions
-                Property(name="narrow_synonyms", data_type=DataType.TEXT_ARRAY, optional=True),  # Narrow synonyms
-                Property(name="broad_synonyms", data_type=DataType.TEXT_ARRAY, optional=True),  # Broad synonyms
-                Property(name="editors_note", data_type=DataType.TEXT, optional=True),  # Editor notes
-                Property(name="description", data_type=DataType.TEXT, optional=True),  # Additional descriptions
-                Property(name="curators_note", data_type=DataType.TEXT, optional=True),  # Notes from curators
+                Property(
+                    name="definition", data_type=DataType.TEXT
+                ),  # Concept definition
+                Property(
+                    name="related_synonyms",
+                    data_type=DataType.TEXT_ARRAY,
+                    optional=True,
+                ),  # Related synonyms
+                Property(
+                    name="all_synonyms_combined",
+                    data_type=DataType.TEXT_ARRAY,
+                    optional=True,
+                ),  # All combined synonyms
+                Property(
+                    name="exact_synonyms", data_type=DataType.TEXT_ARRAY, optional=True
+                ),  # Exact synonyms
+                Property(
+                    name="alt_definitions", data_type=DataType.TEXT_ARRAY, optional=True
+                ),  # Alternative definitions
+                Property(
+                    name="narrow_synonyms", data_type=DataType.TEXT_ARRAY, optional=True
+                ),  # Narrow synonyms
+                Property(
+                    name="broad_synonyms", data_type=DataType.TEXT_ARRAY, optional=True
+                ),  # Broad synonyms
+                Property(
+                    name="editors_note", data_type=DataType.TEXT_ARRAY, optional=True
+                ),  # Editor notes
+                Property(
+                    name="description", data_type=DataType.TEXT, optional=True
+                ),  # Additional descriptions
+                Property(
+                    name="curators_note", data_type=DataType.TEXT_ARRAY, optional=True
+                ),  # Notes from curators
             ],
             vector_index_config=Configure.VectorIndex.hnsw(
                 distance_metric=VectorDistances.COSINE,
@@ -173,7 +215,10 @@ def create_ontology_collection(client):
 
     except weaviate.exceptions.WeaviateConnectionError as ce:
         logger.error(f"ConnectionError: Failed to connect to Weaviate - {ce}")
-        return {"status": False, "message": "Failed to connect to Weaviate. Check host, ports, and API key."}
+        return {
+            "status": False,
+            "message": "Failed to connect to Weaviate. Check host, ports, and API key.",
+        }
 
     except weaviate.exceptions.WeaviateBaseError as api_error:
         logger.error(f"Weaviate API Error: {api_error}")
@@ -181,7 +226,11 @@ def create_ontology_collection(client):
 
     except Exception as e:
         logger.error(f"Unexpected Error: {e}")
-        return {"status": False, "message": "An unexpected error occurred while creating the Ontology collection."}
+        return {
+            "status": False,
+            "message": "An unexpected error occurred while creating the Ontology collection.",
+        }
+
 
 def hybrid_search(client, query_text, alpha=0.5, limit=3):
     """
@@ -206,18 +255,28 @@ def hybrid_search(client, query_text, alpha=0.5, limit=3):
         if not isinstance(limit, int) or limit <= 0:
             raise ValueError("Limit must be a positive integer.")
 
-
         collection = client.collections.get(ONTOLOGY_DATABASE)
         if not collection.exists():
             logger.error("The Ontology collection does not exist.")
-            return {"status": False, "message": "Ontology collection does not exist.", "data": []}
+            return {
+                "status": False,
+                "message": "Ontology collection does not exist.",
+                "data": [],
+            }
 
         # hybrid search
         response = collection.query.hybrid(
             query=query_text,
             alpha=alpha,  # Balance between BM25 (0)  and Vector search (1)
             limit=limit,
-            return_properties=["class_id", "class_uri", "ontology", "label", "definition", "all_synonyms_combined"]
+            return_properties=[
+                "class_id",
+                "class_uri",
+                "ontology",
+                "label",
+                "definition",
+                "all_synonyms_combined",
+            ],
         )
 
         results = response.objects if response.objects else []
@@ -228,18 +287,30 @@ def hybrid_search(client, query_text, alpha=0.5, limit=3):
         logger.info("Found %d results for query: '%s'", len(results), query_text)
         return {"status": True, "message": "Search successful.", "data": results}
 
-
     except weaviate.exceptions.WeaviateConnectionError as ce:
         logger.error(f"ConnectionError: {ce}")
-        return {"status": False, "message": "Failed to connect to Weaviate. Check host and network.", "data": []}
+        return {
+            "status": False,
+            "message": "Failed to connect to Weaviate. Check host and network.",
+            "data": [],
+        }
 
     except weaviate.exceptions.WeaviateQueryError as query_error:
         logger.error(f"Query Error: {query_error}")
-        return {"status": False, "message": f"Weaviate query error occurred: {query_error}", "data": []}
+        return {
+            "status": False,
+            "message": f"Weaviate query error occurred: {query_error}",
+            "data": [],
+        }
 
     except Exception as e:
         logger.error(f"Unexpected Error: {e}")
-        return {"status": False, "message": "An unexpected error occurred during hybrid search.", "data": []}
+        return {
+            "status": False,
+            "message": "An unexpected error occurred during hybrid search.",
+            "data": [],
+        }
+
 
 def batch_insert_ontology_data(client, data, max_errors=1000):
     """
@@ -269,11 +340,17 @@ def batch_insert_ontology_data(client, data, max_errors=1000):
         # Start dynamic batch insertion
         with collection.batch.dynamic() as batch:
             for entry in data:
-                if not isinstance(entry, dict) or "class_id" not in entry or "label" not in entry:
+                if (
+                    not isinstance(entry, dict)
+                    or "class_id" not in entry
+                    or "label" not in entry
+                ):
                     logger.warning("Skipping invalid entry: %s", entry)
                     continue
 
-                obj_uuid = generate_uuid5(entry["class_id"])  # Generate deterministic UUID
+                obj_uuid = generate_uuid5(
+                    entry["class_id"]
+                )  # Generate deterministic UUID
 
                 batch.add_object(
                     properties={
@@ -294,15 +371,16 @@ def batch_insert_ontology_data(client, data, max_errors=1000):
                         "broad_synonyms": entry.get("broad_synonyms", []),
                         "editors_note": entry.get("editors_note", ""),
                         "description": entry.get("description", ""),
-                        "curators_note": entry.get("curators_note", "")
+                        "curators_note": entry.get("curators_note", ""),
                     },
-                    uuid=obj_uuid
+                    uuid=obj_uuid,
                 )
                 inserted_count += 1
 
-
                 if batch.number_errors > max_errors:
-                    logger.error(f"Batch import stopped due to excessive errors ({batch.number_errors}).")
+                    logger.error(
+                        f"Batch import stopped due to excessive errors ({batch.number_errors})."
+                    )
                     break
 
         # Handle failed objects
@@ -311,17 +389,27 @@ def batch_insert_ontology_data(client, data, max_errors=1000):
             logger.warning(f"Number of failed imports: {len(failed_objects)}")
             logger.warning(f" First failed object: {failed_objects[0]}")
 
-        logger.info(f"Successfully inserted {inserted_count}/{len(data)} records in batch mode.")
-        return {"status": True, "message": f"Inserted {inserted_count}/{len(data)} records in batch mode."}
-
+        logger.info(
+            f"Successfully inserted {inserted_count}/{len(data)} records in batch mode."
+        )
+        return {
+            "status": True,
+            "message": f"Inserted {inserted_count}/{len(data)} records in batch mode.",
+        }
 
     except weaviate.exceptions.WeaviateBaseError as weaviate_error:
         logger.error(f" Weaviate Error: {weaviate_error}")
-        return {"status": False, "message": f"Weaviate error occurred: {weaviate_error}"}
+        return {
+            "status": False,
+            "message": f"Weaviate error occurred: {weaviate_error}",
+        }
 
     except Exception as e:
         logger.error(f" Unexpected Error: {e}")
-        return {"status": False, "message": "An unexpected error occurred while inserting ontology data in batch mode."}
+        return {
+            "status": False,
+            "message": "An unexpected error occurred while inserting ontology data in batch mode.",
+        }
 
 
 def required_config_exists(data: dict, type: str) -> bool:
@@ -344,11 +432,11 @@ def required_config_exists(data: dict, type: str) -> bool:
     - "agent": Specifies which agent is responsible for executing the task.
 
     Parameters:
-        data (dict): Dictionary containing configurations for agents or tasks.
+        data (dict): Dictionary containing configurations for crew or tasks.
         type (str): The type of configuration to check ("agent" or "task").
 
     Returns:
-        bool: True if all agents or tasks have the required keys, False otherwise.
+        bool: True if all crew or tasks have the required keys, False otherwise.
 
     Example:
         >>> config = {
@@ -393,6 +481,7 @@ def required_config_exists(data: dict, type: str) -> bool:
     """
     required_keys = {
         "agent": {"role", "goal", "backstory", "llm"},
+        "embedder": {"provider","config"},
         "task": {"description", "expected_output", "agent"},
     }
 
@@ -412,7 +501,7 @@ def load_config(config: Union[str, Path, Dict], type: str) -> dict:
 
     Args:
         config (Union[str, Path, dict]): The configuration source.
-        type (str): The type of the configuration, e.g., agents or tasks
+        type (str): The type of the configuration, e.g., crew or tasks
 
     Returns:
         dict: Parsed LLM configuration.
