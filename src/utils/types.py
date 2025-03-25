@@ -24,8 +24,8 @@ from pydantic import BaseModel
 from typing import List, Dict
 
 
-class NEREntity(BaseModel):
-    """Represents a named entity recognized (NER) in text."""
+class StructuredInformation(BaseModel):
+    """Represents a structured information in text."""
     entity: str
     label: str
     sentence: str
@@ -36,16 +36,21 @@ class NEREntity(BaseModel):
     doi: str
 
 
-class AlignedNEREntity(NEREntity):
-    """Represents an aligned Named Entity Recognition (NER) term with ontology mapping."""
+class AlignedStructuredInformation(StructuredInformation):
+    """Represents an aligned term with ontology mapping."""
     ontology_id: str
     ontology_label: str
 
+class JudgedStructuredInformation(AlignedStructuredInformation):
+    judge_score: float
 
-class AlignedNERTerms(BaseModel):
-    """Pydantic model to validate aligned NER terms."""
-    aligned_ner_terms: Dict[str, List[AlignedNEREntity]]
+class JudgeStructuredTerms(BaseModel):
+    aligned_judged_terms: Dict[str, List[JudgedStructuredInformation]]
 
-class ExtractedNERTerms(BaseModel):
-    """Pydantic model to validate extracted NER terms."""
-    extracted_ner_terms: Dict[str, List[NEREntity]]
+class AlignedStructuredTerms(BaseModel):
+    """Pydantic model to validate aligned  terms."""
+    aligned_ner_terms: Dict[str, List[AlignedStructuredInformation]]
+
+class ExtractedStructuredTerms(BaseModel):
+    """Pydantic model to validate extracted terms."""
+    extracted_terms: Dict[str, List[StructuredInformation]]
