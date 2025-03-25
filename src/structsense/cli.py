@@ -1,8 +1,10 @@
 """This module defines CLI commands for the PipePal application."""
 
-import click
 import logging
-from .app import StrucSense
+
+import click
+
+from .app import kickoff
 
 logger = logging.getLogger(__name__)
 
@@ -40,14 +42,15 @@ def cli(ctx):
 )
 def extract(agentconfig, taskconfig, embedderconfig, source):
     """Extract the NER terms along with sentence."""
-    StrucSense(agentconfig, taskconfig, embedderconfig, source)
     logger.info(
         f"Processing source: {source} with agent config: {agentconfig} and task config: {taskconfig}"
     )
     click.echo(
         f"Processing source: {source} with agent config: {agentconfig} and task config: {taskconfig}"
     )
-
+    result = kickoff(agentconfig, taskconfig, embedderconfig, source)
+    click.echo(
+        result)
 
 if __name__ == "__main__":
     cli()
