@@ -51,7 +51,7 @@ extractor_agent_task:
 
 alignment_agent_task:
   description: >
-    Take the output of extractor_agent as input and perform the concept alignment using the ontological concepts. 
+    Take the output of extractor_agent {extracted_info} as input and perform the concept alignment using the ontological concepts. 
     A concept alignment is anything where you align the given entity to the matching concept aka class from a ontology or a schema.
   expected_output: >
     Provide the output in the following format.
