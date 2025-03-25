@@ -11,7 +11,7 @@ from crew.extractor_agent import InformationExtractorAgent
 from crew.extractor_task import InformationExtractorTask
 from crew.alignment_agent import ConceptAlignmentAgent
 from crew.alignment_task import ConceptAlignmentTask
-from utils.types import ExtractedNERTerms, AlignedNERTerms
+from utils.types import ExtractedStructuredTerms, AlignedStructuredTerms
 from crewai.flow.flow import Flow, listen, start
 
 from utils.ontology_knowedge_tool import OntologyKnowledgeTool
@@ -105,7 +105,7 @@ class StructSenseFlow(Flow):
         logger.debug("Starting processing ")
 
     @listen(process_inputs)
-    async def extracted_structured_information(self) -> ExtractedNERTerms:
+    async def extracted_structured_information(self) -> ExtractedStructuredTerms:
         logger.debug("Processing extracted_structured_information")
         logger.info("Starting structured information extraction.")
         logger.info(f"Source Text: {self.source_text}")
@@ -137,7 +137,7 @@ class StructSenseFlow(Flow):
         return extractor_crew_result.to_dict()
 
     @listen(extracted_structured_information)
-    async def align_structured_information(self, data_from_previous_step_extracted_info):
+    async def align_structured_information(self, data_from_previous_step_extracted_info) -> AlignedStructuredTerms:
         if not data_from_previous_step_extracted_info:
             logger.warning("No structured information extracted. Skipping alignment.")
             return None

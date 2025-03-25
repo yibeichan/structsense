@@ -17,7 +17,7 @@
 
 
 from crewai import Agent, Task
-from utils.types import ExtractedNERTerms
+from utils.types import ExtractedStructuredTerms
 
 class InformationExtractorTask:
     """Information Extractor Crew Task.
@@ -43,4 +43,4 @@ class InformationExtractorTask:
         Returns:
             Task: A configured CrewAI task.
         """
-        return Task(config=self.tasks_config, output_pydantic=ExtractedNERTerms, agent=agent)
+        return Task(config=self.tasks_config, output_pydantic=ExtractedStructuredTerms, agent=agent)

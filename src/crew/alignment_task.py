@@ -17,7 +17,7 @@
 # @Software: PyCharm
 
 from crewai import Agent, Task
-from utils.types import AlignedNERTerms
+from utils.types import AlignedStructuredTerms
 
 
 class ConceptAlignmentTask:
@@ -45,5 +45,5 @@ class ConceptAlignmentTask:
             Task: A configured CrewAI task.
         """
         return Task(config=self.tasks_config,
-                    output_pydantic=AlignedNERTerms,
+                    output_pydantic=AlignedStructuredTerms,
                     agent=agent)
