@@ -78,7 +78,7 @@ convention = "google"
 "src/tests/**/*.py" = []
 
 [tool.poetry.scripts]
-strucsense-cli = "strucsense.cli:cli" #A blend of "Structure" and "Sense-making."
+structsense-cli = "structsense.cli:cli" #A blend of "Structure" and "Sense-making."
 
 [tool.ruff.format]
 quote-style = "double"
