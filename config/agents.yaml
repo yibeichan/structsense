@@ -18,7 +18,7 @@ extractor_agent:
     frequency_penalty: 0.1 # Reduce repetition
     temperature: 0.7 # Higher for more creative outputs
     seed: 53  # For reproducible results
-    api_key: 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
+    api_key: XXX
 
 alignment_agent:
   role: >
@@ -35,4 +35,4 @@ alignment_agent:
     frequency_penalty: 0.1 # Reduce repetition
     temperature: 0.7 # Higher for more creative outputs
     seed: 53  # For reproducible results
-    api_key: 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
+    api_key: XXX
