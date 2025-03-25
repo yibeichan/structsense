@@ -27,7 +27,7 @@ class JudgeAgent:
         """
         self.agents_config = agents_config
 
-    def alignment_agent(self) -> Agent:
+    def judge_agent(self) -> Agent:
         """Creates and returns an alignment agent based on the configuration.
 
         The judge agent is defined with a role, goal, backstory, and an LLM model.
