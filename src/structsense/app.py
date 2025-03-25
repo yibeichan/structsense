@@ -170,7 +170,7 @@ class StructSenseFlow(Flow):
 
         self.state["aligned_information"] = alignment_crew_result
         self.state["current_step"] = "aligned_information"
-        return alignment_crew_result
+        return alignment_crew_result.to_dict()
 
 
 

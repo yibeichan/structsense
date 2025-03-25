@@ -30,7 +30,7 @@ class InformationExtractorAgent:
         
         Output: 
         {
-    "extracted_ner_terms": {
+    "extracted_terms": {
     "1": [
       {
         "entity": "APOE",

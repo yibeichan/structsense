@@ -41,7 +41,7 @@ def cli(ctx):
     help=("The source—whether a file (text or PDF), a folder, or a text string."),
 )
 def extract(agentconfig, taskconfig, embedderconfig, source):
-    """Extract the NER terms along with sentence."""
+    """Extract the terms along with sentence."""
     logger.info(
         f"Processing source: {source} with agent config: {agentconfig} and task config: {taskconfig}"
     )

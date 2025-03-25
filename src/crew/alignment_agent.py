@@ -26,7 +26,7 @@ class ConceptAlignmentAgent:
     
     Input:
         {
-    "extracted_ner_terms": {
+    "extracted_terms": {
     "1": [
       {
         "entity": "APOE",
@@ -68,7 +68,7 @@ class ConceptAlignmentAgent:
 
     Output:
     {
-    "aligned_ner_terms": {
+    "aligned_terms": {
     "1": [
       {
         "entity": "APOE",
