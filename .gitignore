@@ -3,6 +3,7 @@
 
 # Mac
 .DS_Store
+crew_memory/
 .venv/
 .nervenv/
 # Byte-compiled / optimized / DLL files
