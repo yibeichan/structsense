@@ -14,20 +14,15 @@ from crew.alignment_task import ConceptAlignmentTask
 from utils.types import ExtractedNERTerms, AlignedNERTerms
 from crewai.flow.flow import Flow, listen, start
 
+from utils.ontology_knowedge_tool import OntologyKnowledgeTool
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
-logger = logging.getLogger("SchemaExtractor")
+logger = logging.getLogger("StructSenseFlow")
 
-
-class SourceWrapper:
-    """Wrapper class to ensure 'source' has required attributes."""
-
-    def __init__(self, text):
-        self.text = text
-        self._methods = {}  # Ensure it has `_methods` to prevent errors
 
 
 class StructSenseFlow(Flow):
@@ -153,6 +148,8 @@ class StructSenseFlow(Flow):
             logger.error("Alignment agent or task not initialized.")
             return None
 
+        ontology_tool = OntologyKnowledgeTool()
+
         alignment_crew = Crew(
             agents=[alignment_agent],
             tasks=[alignment_task],
@@ -160,6 +157,7 @@ class StructSenseFlow(Flow):
             long_term_memory_config=self.long_term_memory,
             short_term_memory=self.short_term_memory,
             entity_memory=self.entity_memory,
+            tools=[ontology_tool],
             verbose=True,
         )
 
