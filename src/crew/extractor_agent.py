@@ -17,18 +17,63 @@
 # @Software: PyCharm
 
 
-from crewai import Agent, LLM
+from crewai import LLM, Agent
 
 
 class InformationExtractorAgent:
     """Information Extractor Agent Crew.
 
     This crew is responsible for extracting the structured information based on the passed configuration.
+
+    Example:
+        Input:  From the given Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function. extract named entities from neuroscience statements.  A named entity is anything that can be referred to with a proper name.  Some common named entities in neuroscience articles are animal species (e.g., mouse, drosophila, zebrafish), anatomical regions (e.g., neocortex, mushroom body, cerebellum), experimental conditions (e.g., control, tetrodotoxin treatment, Scn1a knockout), and cell types (e.g., pyramidal neuron, direction-sensitive mechanoreceptor, oligodendrocyte)
+        
+        Output: 
+        {
+    "extracted_ner_terms": {
+    "1": [
+      {
+        "entity": "APOE",
+        "label": "GENE",
+        "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+        "start": 29,
+        "end": 33,
+        "paper_location": "unknown",
+        "paper_title": "unknown",
+        "doi": "unknown"
+      }
+    ],
+    "2": [
+      {
+        "entity": "astrocytes",
+        "label": "CELL_TYPE",
+        "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+        "start": 91,
+        "end": 101,
+        "paper_location": "unknown",
+        "paper_title": "unknown",
+        "doi": "unknown"
+      }
+    ],
+    "3": [
+      {
+        "entity": "microglia",
+        "label": "CELL_TYPE",
+        "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+        "start": 106,
+        "end": 115,
+        "paper_location": "unknown",
+        "paper_title": "unknown",
+        "doi": "unknown"
+      }
+    ]
+    }
+    }
+
     """
 
     def __init__(self, agents_config):
-        """
-        Initializes the Information Extractor Crew.
+        """Initializes the Information Extractor Crew.
 
         Args:
             agents_config (dict): Dictionary containing configuration for agents.

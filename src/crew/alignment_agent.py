@@ -17,18 +17,106 @@
 # @Software: PyCharm
 
 
-from crewai import Agent, LLM
-
+from crewai import LLM, Agent
 
 class ConceptAlignmentAgent:
     """Concept Alignemnt Agent Crew.
 
     This crew is responsible for performing the concept alignment.
+    
+    Input:
+        {
+    "extracted_ner_terms": {
+    "1": [
+      {
+        "entity": "APOE",
+        "label": "GENE",
+        "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+        "start": 29,
+        "end": 33,
+        "paper_location": "unknown",
+        "paper_title": "unknown",
+        "doi": "unknown"
+      }
+    ],
+    "2": [
+      {
+        "entity": "astrocytes",
+        "label": "CELL_TYPE",
+        "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+        "start": 91,
+        "end": 101,
+        "paper_location": "unknown",
+        "paper_title": "unknown",
+        "doi": "unknown"
+      }
+    ],
+    "3": [
+      {
+        "entity": "microglia",
+        "label": "CELL_TYPE",
+        "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+        "start": 106,
+        "end": 115,
+        "paper_location": "unknown",
+        "paper_title": "unknown",
+        "doi": "unknown"
+      }
+    ]
+    }
+    }
+
+    Output:
+    {
+    "aligned_ner_terms": {
+    "1": [
+      {
+        "entity": "APOE",
+        "label": "GENE",
+        "ontology_id": "HGNC:613",
+        "ontology_label": "apolipoprotein E",
+        "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+        "start": 29,
+        "end": 33,
+        "paper_location": "unknown",
+        "paper_title": "unknown",
+        "doi": "unknown"
+      }
+    ],
+    "2": [
+      {
+        "entity": "astrocytes",
+        "label": "CELL_TYPE",
+        "ontology_id": "CL:0000127",
+        "ontology_label": "astrocyte",
+        "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+        "start": 91,
+        "end": 101,
+        "paper_location": "unknown",
+        "paper_title": "unknown",
+        "doi": "unknown"
+      }
+    ],
+    "3": [
+      {
+        "entity": "microglia",
+        "label": "CELL_TYPE",
+        "ontology_id": "CL:0000129",
+        "ontology_label": "microglial cell",
+        "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+        "start": 106,
+        "end": 115,
+        "paper_location": "unknown",
+        "paper_title": "unknown",
+        "doi": "unknown"
+      }
+    ]
+    }
+    }
     """
 
     def __init__(self, agents_config):
-        """
-        Initializes the Information Extractor Crew.
+        """Initializes the Information Extractor Crew.
 
         Args:
             agents_config (dict): Dictionary containing configuration for agents.
