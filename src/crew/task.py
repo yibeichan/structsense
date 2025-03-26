@@ -19,7 +19,7 @@
 from crewai import Agent, Task
 from utils.types import ExtractedStructuredTerms
 
-class InformationExtractorTask:
+class AgentTask:
     """Information Extractor Crew Task.
 
     This crew is responsible for extracting the structured information based on the passed configuration.
@@ -34,7 +34,7 @@ class InformationExtractorTask:
         """
         self.tasks_config = tasks_config
 
-    def extractor_task(self, agent: Agent) -> Task:
+    def agent_task(self, agent: Agent) -> Task:
         """Creates and returns an extraction task assigned to the agent.
 
         Args:

@@ -20,7 +20,7 @@
 from crewai import LLM, Agent
 
 
-class InformationExtractorAgent:
+class InformationProcessingAgent:
     """Information Extractor Agent Crew.
 
     This crew is responsible for extracting the structured information based on the passed configuration.
@@ -82,7 +82,7 @@ class InformationExtractorAgent:
         self.embedderconfig = embedderconfig
         self.tools = tools
 
-    def extractor_agent(self) -> Agent:
+    def information_agent(self) -> Agent:
         """Creates and returns an extractor agent based on the configuration.
 
         The extractor agent is defined with a role, goal, backstory, and an LLM model.
