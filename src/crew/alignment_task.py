@@ -45,4 +45,5 @@ class ConceptAlignmentTask:
             Task: A configured CrewAI task.
         """
         return Task(config=self.tasks_config,
+                    output_pydantic=AlignedStructuredTerms,
                     agent=agent)

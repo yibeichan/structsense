@@ -46,4 +46,5 @@ class JudgeTask:
             Task: A configured CrewAI task.
         """
         return Task(config=self.tasks_config,
+                    output_pydantic=JudgeStructuredTerms,
                     agent=agent)
