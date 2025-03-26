@@ -10,13 +10,12 @@ from crewai.memory import LongTermMemory, ShortTermMemory, EntityMemory
 from crewai.memory.storage.rag_storage import RAGStorage
 from crewai.memory.storage.ltm_sqlite_storage import LTMSQLiteStorage
 
-from crew.extractor_agent import InformationExtractorAgent
-from crew.extractor_task import InformationExtractorTask
-from crew.alignment_agent import ConceptAlignmentAgent
-from crew.alignment_task import ConceptAlignmentTask
-from crew.judge_agent import JudgeAgent
-from crew.judge_task import JudgeTask
-from utils.types import ExtractedStructuredTerms, AlignedStructuredTerms, JudgeStructuredTerms
+from crew.ner_extractor_agent import InformationExtractorAgent
+from crew.ner_extractor_task import InformationExtractorTask
+from crew.ner_alignment_agent import ConceptAlignmentAgent
+from crew.ner_alignment_task import ConceptAlignmentTask
+from crew.ner_judge_agent import JudgeAgent
+from crew.ner_judge_task import JudgeTask
 from crewai.flow.flow import Flow, listen, start
 
 from utils.ontology_knowedge_tool import OntologyKnowledgeTool
@@ -85,13 +84,13 @@ class StructSenseFlow(Flow):
             )
         except Exception as e:
             logger.error(f"Memory initialization failed: {e}")
-            raise
+
 
     def initialize_extractor(self, agent_config: Dict, task_config: Dict, tools=[]):
         """Initialize the information extractor agent and task."""
         try:
-            extractor_agent_init = InformationExtractorAgent(agent_config["extractor_agent"],  self.embedderconfig, tools)
-            extractor_task_init = InformationExtractorTask(task_config["extractor_agent_task"])
+            extractor_agent_init = InformationExtractorAgent(agent_config["ner_extractor_agent"],  self.embedderconfig, tools)
+            extractor_task_init = InformationExtractorTask(task_config["ner_extractor_agent_task"])
 
             extractor_agent = extractor_agent_init.extractor_agent()
             extractor_task = extractor_task_init.extractor_task(extractor_agent)
@@ -108,8 +107,8 @@ class StructSenseFlow(Flow):
     def initialize_alignment(self, agent_config: Dict, task_config: Dict, tools=[]):
         """Initialize the concept alignment agent and task."""
         try:
-            alignment_agent_init = ConceptAlignmentAgent(agent_config["alignment_agent"], self.embedderconfig, tools)
-            alignment_task_init = ConceptAlignmentTask(task_config["alignment_agent_task"])
+            alignment_agent_init = ConceptAlignmentAgent(agent_config["ner_alignment_agent"], self.embedderconfig, tools)
+            alignment_task_init = ConceptAlignmentTask(task_config["ner_alignment_agent_task"])
 
 
             alignment_agent = alignment_agent_init.alignment_agent()
@@ -127,8 +126,8 @@ class StructSenseFlow(Flow):
     def initialize_judge(self, agent_config: Dict, task_config: Dict, tools=[]):
         """Initialize the judge alignment agent and task."""
         try:
-            judge_agent_init = JudgeAgent(agent_config["judge_agent"],  self.embedderconfig, tools)
-            judge_task_init = JudgeTask(task_config["judge_agent_task"])
+            judge_agent_init = JudgeAgent(agent_config["ner_judge_agent"],  self.embedderconfig, tools)
+            judge_task_init = JudgeTask(task_config["ner_judge_agent_task"])
 
             judge_agent = judge_agent_init.judge_agent()
             judge_task = judge_task_init.judge_task(judge_agent)
@@ -147,7 +146,7 @@ class StructSenseFlow(Flow):
         logger.debug("Starting processing ")
 
     @listen(process_inputs)
-    async def extracted_structured_information(self) -> ExtractedStructuredTerms:
+    async def extracted_structured_information(self):
         logger.debug("Processing extracted_structured_information")
         logger.info("Starting structured information extraction.")
         logger.info(f"Source Text: {self.source_text}")
@@ -180,7 +179,7 @@ class StructSenseFlow(Flow):
         return extractor_crew_result.to_dict()
 
     @listen(extracted_structured_information)
-    async def align_structured_information(self, data_from_previous_step_extracted_info) -> AlignedStructuredTerms:
+    async def align_structured_information(self, data_from_previous_step_extracted_info):
         if not data_from_previous_step_extracted_info:
             logger.warning("No structured information extracted. Skipping alignment.")
             return None
@@ -221,9 +220,9 @@ class StructSenseFlow(Flow):
 
     @listen(align_structured_information)
     async def judge_alignment(self, data_from_previous_step_align_structured_info):
-        logger.debug("-" * 100)
-        logger.debug(f"Previous data: {data_from_previous_step_align_structured_info}")
-        logger.debug("-" * 100)
+        print("-" * 100)
+        print(f"Previous data: {data_from_previous_step_align_structured_info}")
+        print("-" * 100)
         if not data_from_previous_step_align_structured_info:
             logger.warning("No aligned structured information extracted. Skipping judgement.")
             return None
@@ -264,7 +263,7 @@ class StructSenseFlow(Flow):
         judge_crew_result = judge_crew.kickoff(inputs={
             "aligned_structured_terms": prev_data,
         })
-        logger.info(f"Alignment Crew Result: {judge_crew_result}")
+        logger.info(f"Judge Crew Result: {judge_crew_result}")
 
         if not judge_crew_result:
             logger.warning("Alignment crew returned no results.")

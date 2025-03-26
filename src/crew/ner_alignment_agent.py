@@ -13,22 +13,18 @@
 # @Author  : Tek Raj Chhetri
 # @Email   : tekraj@mit.edu
 # @Web     : https://tekrajchhetri.com/
-# @File    : crew.py
+# @File    : alignment_agent.py
 # @Software: PyCharm
 
 
 from crewai import LLM, Agent
 
+class ConceptAlignmentAgent:
+    """Concept Alignemnt Agent Crew.
 
-class InformationProcessingAgent:
-    """Information Extractor Agent Crew.
-
-    This crew is responsible for extracting the structured information based on the passed configuration.
-
-    Example:
-        Input:  From the given Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function. extract named entities from neuroscience statements.  A named entity is anything that can be referred to with a proper name.  Some common named entities in neuroscience articles are animal species (e.g., mouse, drosophila, zebrafish), anatomical regions (e.g., neocortex, mushroom body, cerebellum), experimental conditions (e.g., control, tetrodotoxin treatment, Scn1a knockout), and cell types (e.g., pyramidal neuron, direction-sensitive mechanoreceptor, oligodendrocyte)
-        
-        Output: 
+    This crew is responsible for performing the concept alignment.
+    
+    Input:
         {
     "extracted_terms": {
     "1": [
@@ -70,6 +66,53 @@ class InformationProcessingAgent:
     }
     }
 
+    Output:
+    {
+    "aligned_terms": {
+    "1": [
+      {
+        "entity": "APOE",
+        "label": "GENE",
+        "ontology_id": "HGNC:613",
+        "ontology_label": "apolipoprotein E",
+        "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+        "start": 29,
+        "end": 33,
+        "paper_location": "unknown",
+        "paper_title": "unknown",
+        "doi": "unknown"
+      }
+    ],
+    "2": [
+      {
+        "entity": "astrocytes",
+        "label": "CELL_TYPE",
+        "ontology_id": "CL:0000127",
+        "ontology_label": "astrocyte",
+        "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+        "start": 91,
+        "end": 101,
+        "paper_location": "unknown",
+        "paper_title": "unknown",
+        "doi": "unknown"
+      }
+    ],
+    "3": [
+      {
+        "entity": "microglia",
+        "label": "CELL_TYPE",
+        "ontology_id": "CL:0000129",
+        "ontology_label": "microglial cell",
+        "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+        "start": 106,
+        "end": 115,
+        "paper_location": "unknown",
+        "paper_title": "unknown",
+        "doi": "unknown"
+      }
+    ]
+    }
+    }
     """
 
     def __init__(self, agents_config, embedderconfig, tools):
@@ -82,22 +125,22 @@ class InformationProcessingAgent:
         self.embedderconfig = embedderconfig
         self.tools = tools
 
-    def information_agent(self) -> Agent:
-        """Creates and returns an extractor agent based on the configuration.
+    def alignment_agent(self) -> Agent:
+        """Creates and returns an alignment agent based on the configuration.
 
-        The extractor agent is defined with a role, goal, backstory, and an LLM model.
+        The alignment agent is defined with a role, goal, backstory, and an LLM model.
 
         Returns:
             Agent: A configured CrewAI agent.
         """
         extractor_config = self.agents_config
-        role_config = extractor_config.get("role", "Default Role")
-        goal_config = extractor_config.get("goal", "Default Goal")
-        backstory_config = extractor_config.get("backstory", "No backstory provided.")
-        llm_config = extractor_config.get("llm", {})
+        role_config = extractor_config.get("role")
+        goal_config = extractor_config.get("goal")
+        backstory_config = extractor_config.get("backstory")
+        llm_config = extractor_config.get("llm")
         embedder_config = self.embedderconfig.get("embedder_config")
 
-        if len(self.tools)>1:
+        if len(self.tools) > 1:
 
             return Agent(
                 role=role_config,

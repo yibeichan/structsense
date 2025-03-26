@@ -3,7 +3,7 @@
 # Role: Defines the agent’s function and expertise within the crew.
 # Goal: The individual objective that guides the agent’s decision-making.
 # Backstory: Provides context and personality to the agent, enriching interactions.
-extractor_agent:
+ner_extractor_agent:
   role: >
     Neuroscience Named Entity Recognition (NER) Extractor Agent
   goal: >
@@ -21,7 +21,7 @@ extractor_agent:
     api_key: XX #testkey
 
 
-alignment_agent:
+ner_alignment_agent:
   role: >
     Neuroscience Named Entity Recognition (NER) Concept Alignment Agent
   goal: >
@@ -39,29 +39,11 @@ alignment_agent:
     api_key: XX
 
 
-judge_agent:
+ner_judge_agent:
   role: >
     Neuroscience Named Entity Recognition (NER) Judge Agent
   goal: >
     Evaluate the {aligned_structured_terms} based on predefined criteria and generate a structured JSON output reflecting the assessment results.
-  backstory: >
-    You are an AI assistant with expert knowledge neuroscience and also on strucutred models, i.e., ontologies or schemas and someone who do not hallucinate.  
-    Your task is to evaluate the {aligned_structured_terms} based on the accuracy and quality of the alignment. 
-    Assign the score between 0-1 with 1 being the highest score of your evaluation.
-    Your responses strictly adhere to JSON format, ensuring accurate and structured data extraction for downstream applications.
-  llm: #see config options - https://docs.crewai.com/how-to/llm-connections#configuration-options
-    model: openrouter/openai/gpt-4o-2024-11-20
-    base_url: https://openrouter.ai/api/v1
-    frequency_penalty: 0.1 # Reduce repetition
-    temperature: 0.7 # Higher for more creative outputs
-    seed: 53  # For reproducible results
-    api_key: XX
-
-humanfeedback_correction_agent:
-  role: >
-    Neuroscience Named Entity Recognition (NER) Human Feedback Agent
-  goal: >
-    Evaluate the {judged_agent_output} based on predefined criteria and generate a structured JSON output reflecting the assessment results.
   backstory: >
     You are an AI assistant with expert knowledge neuroscience and also on strucutred models, i.e., ontologies or schemas and someone who do not hallucinate.  
     Your task is to evaluate the {aligned_structured_terms} based on the accuracy and quality of the alignment. 

@@ -1,6 +1,6 @@
 # Application Configuration
 #https://docs.crewai.com/concepts/tasks
-extractor_agent_task:
+ner_extractor_agent_task:
   description: >
     From the given {literature} extract named entities from neuroscience statements. 
     A named entity is anything that can be referred to with a proper name. 
@@ -49,13 +49,13 @@ extractor_agent_task:
 
   agent: extractor_agent
 
-alignment_agent_task:
+ner_alignment_agent_task:
   description: >
     Take the output of extractor_agent {extracted_info} as input and perform the concept alignment using the ontological concepts. 
     A concept alignment is anything where you align the given entity to the matching concept aka class from a ontology or a schema.
   expected_output: >
     Provide the output in the following format.
-    "aligned_terms": {
+    "aligned_ner_terms": {
         "1": [
               {
                 "entity": "oligodendrocyte",
@@ -91,14 +91,15 @@ alignment_agent_task:
 
   agent: alignment_agent
 
-judge_agent_task:
+ner_judge_agent_task:
   description: >
     Take the output of alignment agent {aligned_structured_terms} as input and perform perform the following evaluation: 
     1. Assess the quality and accuracy of the alignment with the ontology or schema in {aligned_structured_terms}.
     2. Assign a score between 0 and 1 as a judge_score, where 1 represents the highest level of alignment quality and accuracy.
+    3. Update the {aligned_structured_terms} adding the judge_score.
   expected_output: >
     Provide the output in the following format.
-    "aligned_terms": {
+    "judge_ner_terms": {
         "1": [
               {
                 "entity": "oligodendrocyte",
