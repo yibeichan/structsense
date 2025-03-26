@@ -1,9 +1,10 @@
 # Ruff
 .ruff_cache
-
+config/agents.yaml
 # Mac
 .DS_Store
 crew_memory/
+example/
 .venv/
 .nervenv/
 # Byte-compiled / optimized / DLL files
@@ -13,7 +14,7 @@ __pycache__/
 
 # C extensions
 *.so
-
+.chainlit/
 # Distribution / packaging
 .Python
 build/
