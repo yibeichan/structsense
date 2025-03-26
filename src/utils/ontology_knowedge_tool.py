@@ -1,5 +1,4 @@
 import logging
-import json
 from .utils import hybrid_search, get_weaviate_client
 
 logging.basicConfig(
@@ -17,26 +16,25 @@ def OntologyKnowledgeTool(aligned_ner_terms):
         aligned_ner_terms (Dict): Named Entity Recognition (NER) terms aligned with ontologies.
 
     Returns:
-        Dict: A structured knowledge dictionary with ontology search results.
+        str: A plain, long string containing ontology knowledge.
     """
-    knowledge_dict = {}
+    response_text = ""
 
     if not aligned_ner_terms:
         logger.error("No aligned NER terms provided.")
-        return {"error": "Missing required input: aligned_ner_terms."}
+        return "Error: Missing required input: aligned_ner_terms."
 
     # Extract the correct key dynamically
     if isinstance(aligned_ner_terms, dict):
-        # Find the key that contains the NER terms (e.g., extracted_terms, aligned_ner_term)
         key_name = next((key for key in aligned_ner_terms.keys() if isinstance(aligned_ner_terms[key], dict)), None)
         if key_name:
             terms_data = aligned_ner_terms[key_name]
         else:
             logger.error("No valid key found in aligned_ner_terms.")
-            return {"error": "Invalid input structure. No recognized key found."}
+            return "Error: Invalid input structure. No recognized key found."
     else:
         logger.error("Unexpected format for aligned_ner_terms.")
-        return {"error": "Invalid input structure."}
+        return "Error: Invalid input structure."
 
     # Iterate through entity groups
     for term_group in terms_data.values():
@@ -51,49 +49,32 @@ def OntologyKnowledgeTool(aligned_ner_terms):
 
             entity = term.get("entity")
             label = term.get("label")
-            ontology_id = term.get("ontology_id", "unknown")
-            ontology_label = term.get("ontology_label", "unknown")
-            sentence = term.get("sentence", "No sentence provided.")
-            doi = term.get("doi", "unknown")
-            paper_title = term.get("paper_title", "unknown")
 
             if not entity:
                 logger.warning(f"Skipping term due to missing entity: {term}")
                 continue
 
+            response_text += f"Entity: {entity}, Label: {label}. "
+
             try:
                 # Perform hybrid search for the entity
                 client = get_weaviate_client()
                 search_results = hybrid_search(client, entity)
+                client.close()
 
-                # Merge results if entity already exists
-                if entity in knowledge_dict:
-                    knowledge_dict[entity]["search_results"].extend(search_results)
-                else:
-                    knowledge_dict[entity] = {
-                        "label": label,
-                        "ontology_id": ontology_id,
-                        "ontology_label": ontology_label,
-                        "sentence": sentence,
-                        "doi": doi,
-                        "paper_title": paper_title,
-                        "search_results": search_results
-                    }
+                # Append search results to response text
+                if search_results:
+                    response_text += "Search Results: "
+                    for res in search_results:
+                        response_text += (
+                            f"[Label: {res.get('label', 'N/A')}, "
+                            f"Definition: {res.get('definition', 'No definition available')}, "
+                            f"Ontology: {res.get('ontology', 'N/A')}, "
+                            f"Class URI: {res.get('class_uri', 'N/A')}]. "
+                        )
+
             except Exception as e:
                 logger.error(f"Hybrid search failed for entity '{entity}': {e}")
-                knowledge_dict[entity] = {
-                    "label": label,
-                    "ontology_id": ontology_id,
-                    "ontology_label": ontology_label,
-                    "sentence": sentence,
-                    "doi": doi,
-                    "paper_title": paper_title,
-                    "search_results": None,
-                    "error": str(e)
-                }
+                response_text += "Search Results: Failed to retrieve search results. "
 
-    print("#" * 100)
-    print(knowledge_dict)
-    print("#" * 100)
-    logger.info(f"Ontology knowledge retrieved: {knowledge_dict}")
-    return json.dumps(knowledge_dict, indent=4)
+    return response_text.strip() if response_text else "No ontology knowledge found."
