@@ -19,13 +19,14 @@
 from crewai import LLM, Agent
 
 class JudgeAgent:
-    def __init__(self, agents_config):
+    def __init__(self, agents_config, embedderconfig):
         """Initializes the Judge Agent.
 
         Args:
             agents_config (dict): Dictionary containing configuration for agents.
         """
         self.agents_config = agents_config
+        self.embedderconfig = embedderconfig
 
     def judge_agent(self) -> Agent:
         """Creates and returns an alignment agent based on the configuration.
@@ -40,11 +41,13 @@ class JudgeAgent:
         goal_config = extractor_config.get("goal")
         backstory_config = extractor_config.get("backstory")
         llm_config = extractor_config.get("llm")
+        embedder_config = self.embedderconfig.get("embedder_config")
 
         return Agent(
             role=role_config,
             goal=goal_config,
             backstory=backstory_config,
+            embedder=embedder_config,
             # meaning the agent has to complete the task,
             # it would not be able delegate task to other agent to complete the task
             # we want each agent to complete the assigned task

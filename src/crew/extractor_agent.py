@@ -72,13 +72,14 @@ class InformationExtractorAgent:
 
     """
 
-    def __init__(self, agents_config):
+    def __init__(self, agents_config, embedderconfig):
         """Initializes the Information Extractor Crew.
 
         Args:
             agents_config (dict): Dictionary containing configuration for agents.
         """
         self.agents_config = agents_config
+        self.embedderconfig = embedderconfig
 
     def extractor_agent(self) -> Agent:
         """Creates and returns an extractor agent based on the configuration.
@@ -93,11 +94,13 @@ class InformationExtractorAgent:
         goal_config = extractor_config.get("goal", "Default Goal")
         backstory_config = extractor_config.get("backstory", "No backstory provided.")
         llm_config = extractor_config.get("llm", {})
+        embedder_config = self.embedderconfig.get("embedder_config")
 
         return Agent(
             role=role_config,
             goal=goal_config,
             backstory=backstory_config,
+            embedder=embedder_config,
             allow_delegation=False,
             verbose=True,
             llm=LLM(**llm_config),

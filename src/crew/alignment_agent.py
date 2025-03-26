@@ -115,13 +115,14 @@ class ConceptAlignmentAgent:
     }
     """
 
-    def __init__(self, agents_config):
+    def __init__(self, agents_config, embedderconfig):
         """Initializes the Information Extractor Crew.
 
         Args:
             agents_config (dict): Dictionary containing configuration for agents.
         """
         self.agents_config = agents_config
+        self.embedderconfig = embedderconfig
 
     def alignment_agent(self) -> Agent:
         """Creates and returns an alignment agent based on the configuration.
@@ -136,12 +137,14 @@ class ConceptAlignmentAgent:
         goal_config = extractor_config.get("goal")
         backstory_config = extractor_config.get("backstory")
         llm_config = extractor_config.get("llm")
+        embedder_config = self.embedderconfig.get("embedder_config")
 
         return Agent(
             role=role_config,
             goal=goal_config,
             backstory=backstory_config,
             allow_delegation=False,
+            embedder=embedder_config,
             verbose=True,
             llm=LLM(**llm_config),
         )
