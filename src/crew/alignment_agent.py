@@ -115,7 +115,7 @@ class ConceptAlignmentAgent:
     }
     """
 
-    def __init__(self, agents_config, embedderconfig):
+    def __init__(self, agents_config, embedderconfig, tools):
         """Initializes the Information Extractor Crew.
 
         Args:
@@ -123,6 +123,7 @@ class ConceptAlignmentAgent:
         """
         self.agents_config = agents_config
         self.embedderconfig = embedderconfig
+        self.tools = tools
 
     def alignment_agent(self) -> Agent:
         """Creates and returns an alignment agent based on the configuration.
@@ -139,12 +140,31 @@ class ConceptAlignmentAgent:
         llm_config = extractor_config.get("llm")
         embedder_config = self.embedderconfig.get("embedder_config")
 
-        return Agent(
-            role=role_config,
-            goal=goal_config,
-            backstory=backstory_config,
-            allow_delegation=False,
-            embedder=embedder_config,
-            verbose=True,
-            llm=LLM(**llm_config),
-        )
+        if len(self.tools) > 1:
+
+            return Agent(
+                role=role_config,
+                goal=goal_config,
+                backstory=backstory_config,
+                embedder=embedder_config,
+                tools=self.tools,
+                # meaning the agent has to complete the task,
+                # it would not be able delegate task to other agent to complete the task
+                # we want each agent to complete the assigned task
+                allow_delegation=False,
+                verbose=True,
+                llm=LLM(**llm_config),
+            )
+        else:
+            return Agent(
+                role=role_config,
+                goal=goal_config,
+                backstory=backstory_config,
+                embedder=embedder_config,
+                # meaning the agent has to complete the task,
+                # it would not be able delegate task to other agent to complete the task
+                # we want each agent to complete the assigned task
+                allow_delegation=False,
+                verbose=True,
+                llm=LLM(**llm_config),
+            )
