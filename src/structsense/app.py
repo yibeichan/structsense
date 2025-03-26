@@ -193,12 +193,6 @@ class StructSenseFlow(Flow):
             content=custom_source
         )
 
-        print("$"*100)
-        print(custom_source)
-        print("$" * 100)
-
-
-
         alignment_crew = Crew(
             agents=[alignment_agent],
             tasks=[alignment_task],
