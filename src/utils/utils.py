@@ -254,7 +254,7 @@ def extract_weaviate_properties(weaviate_results):
     return [obj.properties for obj in weaviate_results]
 
 
-def hybrid_search(client, query_text, alpha=0.5, limit=5):
+def hybrid_search(client, query_text, alpha=0.5, limit=3):
     """
     Performs a hybrid search (BM25 + Vector Search) on the Ontology collection.
 
@@ -307,6 +307,7 @@ def hybrid_search(client, query_text, alpha=0.5, limit=5):
             return []
 
         logger.info("Found %d results for query: '%s'", len(results), query_text)
+
         return extract_weaviate_properties(results)
 
     except weaviate.exceptions.WeaviateConnectionError as ce:
@@ -332,6 +333,8 @@ def hybrid_search(client, query_text, alpha=0.5, limit=5):
             "message": "An unexpected error occurred during hybrid search.",
             "data": [],
         }
+    finally:
+        client.close()  # close the client
 
 
 def batch_insert_ontology_data(client, data, max_errors=1000):
