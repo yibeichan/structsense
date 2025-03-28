@@ -31,7 +31,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 if os.getenv("ENABLE_WEAVE", "false").lower() == "true":
-
     import weave
     weave.init(project_name="StructSense")
 
