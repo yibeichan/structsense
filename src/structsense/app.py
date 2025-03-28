@@ -7,8 +7,7 @@ import os
 import sys
 import tracemalloc
 
-import mlflow
-import weave
+
 from crewai import Crew
 from crewai.flow.flow import Flow, start
 from crewai.memory import EntityMemory, LongTermMemory, ShortTermMemory
@@ -31,11 +30,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-weave.init(project_name="StructSense")
-# MLFlow tracking
-mlflow.crewai.autolog()
-mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URL", "http://localhost:5000"))
-mlflow.set_experiment("StructSense")
+if os.getenv("ENABLE_WEAVE", "false").lower() == "true":
+
+    import weave
+    weave.init(project_name="StructSense")
+
+# Optional MLflow setup
+if os.getenv("ENABLE_MLFLOW", "false").lower() == "true":
+    import mlflow
+    mlflow.crewai.autolog()
+    mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URL", "http://localhost:5000"))
+    mlflow.set_experiment("StructSense")
 
 
 class StructSenseFlow(Flow):
