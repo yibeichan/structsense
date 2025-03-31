@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "strucsense"
+name = "structsense"
 version = "0.0.1"
-description = "strucsense is a Python package for doing incredible stuff."
+description = "structsense is a powerful multi-agent system designed to extract structured information from unstructured data. By orchestrating intelligent agents, it helps you make sense of complex information — hence the name structsense. Whether you're working with scientific texts, documents, or messy data, structsense enables you to transform it into meaningful, structured insights."
 authors = ["tekrajchhetri <tekraj@mit.edu>"]
 maintainers = ["tekrajchhetri <tekraj@mit.edu>"]
 license = "Apache-2.0"
