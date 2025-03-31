@@ -19,6 +19,8 @@ from crew.dynamic_agent import DynamicAgent
 from crew.dynamic_agent_task import DynamicAgentTask
 from utils.utils import load_config
 from utils.ontology_knowedge_tool import OntologyKnowledgeTool
+from utils.utils import process_input_data
+from pathlib import Path
 
 tracemalloc.start()
 load_dotenv()
@@ -83,6 +85,7 @@ class StructSenseFlow(Flow):
 
         if not hasattr(self, "state") or self.state is None:
             self.__dict__["state"] = {}
+
         self.state["source_text"] = source_text
 
     def interpolate(self, template, context):
@@ -183,22 +186,27 @@ class StructSenseFlow(Flow):
             self.run_step(step)
         return self.state
 
-
 def kickoff(
     agentconfig: str,
     taskconfig: str,
     embedderconfig: str,
     flowconfig: str,
     knowledgeconfig: str,
-    source_text: str,
+    input_source: str,
 ):
+    processed_string = process_input_data(input_source)
+
+    logger.debug("*"*100)
+    logger.debug(processed_string)
+    logger.debug("*" * 100)
+
     flow = StructSenseFlow(
         agent_config=agentconfig,
         task_config=taskconfig,
         embedder_config=embedderconfig,
         flow_config=flowconfig,
         knowledge_config=knowledgeconfig,
-        source_text=source_text,
+        source_text=processed_string,
     )
     result = flow.kickoff()
     # print(result)

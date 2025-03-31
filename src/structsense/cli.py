@@ -72,7 +72,7 @@ def extract(
         embedderconfig=embedderconfig,
         flowconfig=flowconfig,
         knowledgeconfig=knowledgeconfig,
-        source_text=source,
+        input_source=source,
     )
     click.echo(result)
 
