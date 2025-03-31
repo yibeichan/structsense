@@ -6,7 +6,8 @@ config/agents.yaml
 crew_memory/
 example/
 .venv/
-.nervenv/
+.*/*
+.ipynb_checkpoints
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
