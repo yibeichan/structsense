@@ -17,16 +17,16 @@ The below is the architecture of the `StructSense`.
 ## 🚀 Features
 
 - 🔍 Multi-agent architecture for modular processing
-- 📑 Extraction of (structured) information from text--based on configuration
-- 🤝 Collaboration between agents
-- ⚙️ Easy use
-- 🧠 Designed as general purpose domain agnostic framework
+  - 📑 Extraction of (structured) information from text--based on configuration
+  - 🤝 Collaboration between agents
+  - ⚙️ Easy use
+  - 🧠 Designed as general purpose domain agnostic framework
 
 ---
 
 ## 🧠 Example Use Cases
 - Entity and relation extraction from text
-- Knowledge graph construction
+  - Knowledge graph construction
 ---
 ## 📄 Requirements
 ### GROBID Service
@@ -57,6 +57,7 @@ You need to set the following environment variables (e.g., in a `.env` file). WE
 | `WEAVIATE_API_KEY`    | **Required.** API key for Weaviate access    | —                |
 
 #### 🌐 [Weaviate](https://weaviate.io/) Configuration
+This configuration is optional and only necessary if you plan to integrate a knowledge source (e.g., a vector store) into the pipeline.
 
 | Variable                   | Description                                  | Default   |
 |---------------------------|----------------------------------------------|-----------|
@@ -126,9 +127,9 @@ This configuration assumes all other optional variables will use their default v
 In this minimal setup:
 
 - 🚫 **Weights & Biases** is disabled  
-- 🚫 **MLflow tracking** is disabled  
-- 🚫 **Knowledge source integration** is disabled  
-- 📦 As a result, **no vector database** (e.g., Weaviate) is used
+  - 🚫 **MLflow tracking** is disabled  
+  - 🚫 **Knowledge source integration** is disabled  
+  - 📦 As a result, **no vector database** (e.g., Weaviate) is used
 
 ```shell 
 ENABLE_WEIGHTSANDBIAS=false
@@ -207,9 +208,151 @@ In order to run `structsense` you need 5 YAML configuration files.
       
     For further details, refer to [Role-Goal-Backstory](https://docs.crewai.com/guides/agents/crafting-effective-agents#core-principles-of-effective-agent-design)
 - The second is the `task configuration`.
- - Task configuration allows you to describes the tasks for the agent. 
-    - Example task configuration.
- 
+  - Task configuration allows you to describes the tasks for the agent. 
+     - Example task configuration.
+       ```yaml
+         tasks:
+           - id: entity_extraction
+             description: >
+               From the given input {input_data}, extract named entities relevant to your domain.
+               A named entity is any term or phrase that refers to a specific concept, such as a person, place, organization, species, anatomical region, or event.
+    
+               Input:
+               {input_data}
+             expected_output: >
+               Format: JSON
+               Example:
+               {
+                 "extracted_terms": {
+                   "1": [
+                     {
+                       "entity": "example entity",
+                       "label": "ENTITY_TYPE",
+                       "sentence": "This is the sentence where the entity appears.",
+                       "start": 10,
+                       "end": 25,
+                       "source_metadata": {
+                         "title": "Source Title",
+                         "section": "methods",
+                         "doi": "doi-or-id"
+                       }
+                     }
+                   ]
+                 }
+               }
+             agent_id: extractor_agent
+    
+           - id: concept_alignment
+             description: >
+               Take the output from the extraction step {extracted_info} and align each entity to a matching concept 
+               in a domain-specific ontology or schema. Use concept identifiers and labels where possible.
+    
+             expected_output: >
+               Format: JSON
+               Example:
+               {
+                 "aligned_terms": {
+                   "1": [
+                     {
+                       "entity": "example entity",
+                       "label": "ENTITY_TYPE",
+                       "ontology_id": "ONTO:0000001",
+                       "ontology_label": "Mapped Concept Label",
+                       "sentence": "Original sentence text.",
+                       "start": 10,
+                       "end": 25,
+                       "source_metadata": {
+                         "title": "Source Title",
+                         "section": "methods",
+                         "doi": "doi-or-id"
+                       }
+                     }
+                   ]
+                 }
+               }
+             agent_id: alignment_agent
+    
+           - id: alignment_judgment
+             description: >
+               Take the aligned output {aligned_terms} and evaluate each mapping based on domain knowledge and matching quality.
+               Assign a score between 0 and 1 (higher is better), and embed the score into the aligned result.
+    
+             expected_output: >
+               Format: JSON
+               Example:
+               {
+                 "judged_terms": {
+                   "1": [
+                     {
+                       "entity": "example entity",
+                       "label": "ENTITY_TYPE",
+                       "ontology_id": "ONTO:0000001",
+                       "ontology_label": "Mapped Concept Label",
+                       "sentence": "Original sentence text.",
+                       "start": 10,
+                       "end": 25,
+                       "judge_score": 0.85,
+                       "source_metadata": {
+                         "title": "Source Title",
+                         "section": "methods",
+                         "doi": "doi-or-id"
+                       }
+                     }
+                   ]
+                 }
+               }
+             agent_id: judge_agent 
+       ```
+     - Each task links to a specific agent via `agent_id` and defines:
+       - **Description**: What the task does
+       - **Input/Output schema**: Example output structure in JSON
+       - **Agent Link**: Tied to an `id` from `agents configuration`
+       - 
+       > ⚠️ **Note**:  The variables {variable_name} are replaced at the run-time. Also, pay attention in the tasks where we are using the output variable defined in `agent configuration`.
+
+- The third is the `flow configuration`
+
+  - Creates the flow on how the tasks are executed. Even though we see it sequential, since the memory has been setup at a crew level, the details are shared across the agents while performing the tasks.
+
+  ```yaml
+  flow:
+    - id: extracted_structured_information
+      agent_key: extractor_agent #should match the agent configuration
+      task_key: ner_extraction #should match the task configuration
+      inputs:
+        literature: "{{source_text}}"  # still comes from runtime. Do not change this variable name
+  
+      - id: align_structured_information
+        agent_key: alignment_agent
+        task_key: ner_alignment
+        inputs:
+          extracted_info: "{{extracted_info}}"  #  comes from agent's output_variable
+        knowledge_source: extracted_info        #  match output_variable from previous step i.e., extractor_agent and is used to get content from the vector db
+  
+      - id: judge_alignment
+        agent_key: judge_agent
+        task_key: ner_judgment
+        inputs:
+          aligned_structured_terms: "{{aligned_structured_terms}}"
+        knowledge_source: aligned_structured_terms
+  ```
+- The fourth is the `embedding configuration` For more about the different embedding configurations using different provider see [https://docs.crewai.com/concepts/memory#additional-embedding-providerscl](https://docs.crewai.com/concepts/memory#additional-embedding-providerscl).
+  ```yaml
+  embedder_config:
+    provider: ollama
+    config:
+      api_base: http://localhost:11434
+      model: nomic-embed-text:latest
+  ``` 
+- The fifth and the final one is the `search configuration`, where we define the search keys. Since the ontology/schemas are our current knowledge source, which is why you see the label and entity as search key. _This is optional if you do not use knowledge source._
+  ```yaml
+  search_key: #local vector database
+    - entity
+    - label
+  ```
+## Example
+📁 **Examples**: Check out the [`example/`](./example) directory for sample configurations and usage.
+
 ## 📦 Installation
 Install this package via :
 
