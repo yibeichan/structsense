@@ -59,7 +59,7 @@ To configure `structsense`, you need to set the following environment variables 
 | `OLLAMA_API_ENDPOINT` | API endpoint for Ollama model                 | `http://host.docker.internal:11434`     |
 | `OLLAMA_MODEL`        | Name of the Ollama embedding model            | `nomic-embed-text`                      |
 
- Note: If ollama is running in host machine and vector database, i.e., WEAVIATE, in docker, then we use `http://host.docker.internal:11434`, which is also the default value. However, if both are running in docker in the same host, use `http://localhost:11434 `.
+> ⚠️ **Note**:  If ollama is running in host machine and vector database, i.e., WEAVIATE, in docker, then we use `http://host.docker.internal:11434`, which is also the default value. However, if both are running in docker in the same host, use `http://localhost:11434 `.
 #### 🧵 Optional Integrations
 
 | Variable               | Description                                                                | Default           |
@@ -67,7 +67,7 @@ To configure `structsense`, you need to set the following environment variables 
 | `ENABLE_WEIGHTSANDBIAS` | Enable [Weights & Biases](https://wandb.ai/site) monitoring (`true/false`) | `false`           |
 | `ENABLE_MLFLOW`        | Enable [MLflow](https://mlflow.org/) logging (`true/false`)                | `false`           |
 | `MLFLOW_TRACKING_URL`  | MLflow tracking server URL                                                 | `http://localhost:5000` |
-
+ | `ENABLE_KG_SOURCE`    | Enable access to knowledge source, i.e., vector database.                  | `false`                |
 > ⚠️ **Note**: `WEAVIATE_API_KEY` is **required** for `structsense` to run. If it's not set, the system will raise an error.
 >   For Weights & Biases you need to create a project and provide it's key.
 
