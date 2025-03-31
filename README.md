@@ -350,8 +350,6 @@ In order to run `structsense` you need 5 YAML configuration files.
     - entity
     - label
   ```
-## Example
-📁 **Examples**: Check out the [`example/`](./example) directory for sample configurations and usage.
 
 ## 📦 Installation
 Install this package via :
@@ -364,4 +362,47 @@ Or get the newest development version via:
 
 ```sh
 pip install git+https://github.com/sensein/ner_framework.git
+```
+## Example
+
+📁 **Examples**: Check out the [`example/`](./example) directory for more usage.
+
+### 🧪 CLI Usage
+
+You can run `StructSense` using the CLI tool `structsense-cli`. Below are a few examples showing different ways to provide input.
+
+---
+
+#### 📄 1. Extract from a PDF file (with knowledge source)
+
+```bash
+structsense-cli extract \
+  --agentconfig config/your_agent.yaml \
+  --taskconfig config/your_agent_task.yaml \
+  --embedderconfig config/embedding.yaml \
+  --flowconfig config/agent_processing_flow.yaml \
+  --knowledgeconfig config/search_ontology_knowledge.yaml \
+  --source someliterature.pdf
+```
+#### 💬 2. Extract from raw text (with knowledge source)
+
+```shell
+structsense-cli extract \
+  --agentconfig config/your_agent.yaml \
+  --taskconfig config/your_agent_task.yaml \
+  --embedderconfig config/embedding.yaml \
+  --flowconfig config/agent_processing_flow.yaml \
+  --knowledgeconfig config/search_ontology_knowledge.yaml \
+  --source "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function."
+```
+
+#### ⚡ 3. Extract from raw text (minimal setup without knowledge source)
+```shell
+structsense-cli extract \
+  --agentconfig config/your_agent.yaml \
+  --taskconfig config/your_agent_task.yaml \
+  --embedderconfig config/embedding.yaml \
+  --flowconfig config/flow_ner.yaml \
+  --source "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function."
+
 ```
