@@ -20,7 +20,7 @@ from crew.dynamic_agent_task import DynamicAgentTask
 from utils.utils import load_config
 from utils.ontology_knowedge_tool import OntologyKnowledgeTool
 from utils.utils import process_input_data
-from pathlib import Path
+import os
 
 tracemalloc.start()
 load_dotenv()
@@ -63,7 +63,11 @@ class StructSenseFlow(Flow):
         self.taskconfig = {task["id"]: task for task in raw_task_config["tasks"]}
         self.embedderconfig = load_config(embedder_config, "embedder")
         self.flowconfig = load_config(flow_config, "flow")
-        self.knowledgeconfig = load_config(knowledge_config, "knowledge")
+        if knowledge_config is None:
+            os.environ["ENABLE_KG_SOURCE"] = "false"
+            self.knowledgeconfig = {"search_key": {}}
+        else:
+            self.knowledgeconfig = load_config(knowledge_config, "knowledge")
 
         self.long_term_memory = LongTermMemory(
             storage=LTMSQLiteStorage(db_path="crew_memory/long_term_memory_storage.db")
@@ -134,18 +138,22 @@ class StructSenseFlow(Flow):
 
         ksrc = None
         enable_kg_source = os.getenv("ENABLE_KG_SOURCE", "false").lower() == "true"
-        if enable_kg_source and "knowledge_source" in step:
-            src_key = step["knowledge_source"]
-            if src_key in self.state:
-                logger.info(
-                    f"Knowledge source response str: {self.knowledgeconfig['search_key']}"
-                )
-                # Tool is not used because of https://github.com/crewAIInc/crewAI/issues/949
-                custom_source = OntologyKnowledgeTool(
-                    self.state[src_key], self.knowledgeconfig["search_key"]
-                )
-                logger.info(f"Knowledge source response: {custom_source}")
-                ksrc = StringKnowledgeSource(content=custom_source)
+        if not enable_kg_source:
+            logger.info("Knowledge source disabled via ENABLE_KG_SOURCE=false")
+
+        if enable_kg_source:
+            if "knowledge_source" in step:
+                src_key = step["knowledge_source"]
+                if src_key in self.state:
+                    logger.info(
+                        f"Knowledge source response str: {self.knowledgeconfig['search_key']}"
+                    )
+                    # Tool is not used because of https://github.com/crewAIInc/crewAI/issues/949
+                    custom_source = OntologyKnowledgeTool(
+                        self.state[src_key], self.knowledgeconfig["search_key"]
+                    )
+                    logger.info(f"Knowledge source response: {custom_source}")
+                    ksrc = StringKnowledgeSource(content=custom_source)
 
         crew_kwargs = {
             "agents": [agent],
@@ -191,14 +199,10 @@ def kickoff(
     taskconfig: str,
     embedderconfig: str,
     flowconfig: str,
-    knowledgeconfig: str,
     input_source: str,
+    knowledgeconfig: str = None
 ):
     processed_string = process_input_data(input_source)
-
-    logger.debug("*"*100)
-    logger.debug(processed_string)
-    logger.debug("*" * 100)
 
     flow = StructSenseFlow(
         agent_config=agentconfig,

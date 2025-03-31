@@ -45,7 +45,7 @@ def cli(ctx):
 )
 @click.option(
     "--knowledgeconfig",
-    required=True,
+    required=False,
     type=str,
     help=(
         "Path to the configuration in YAML format or or dictionary that specify the search knowledge search key."
