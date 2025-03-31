@@ -16,7 +16,11 @@ classifiers = [
   "License :: OSI Approved :: Apache Software License",
   "Operating System :: OS Independent"
 ]
-packages = [{ include = "structsense", from = "src" }]
+packages = [
+  { include = "structsense", from = "src" },
+  { include = "crew", from = "src" },
+   { include = "utils", from = "src" }
+]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
