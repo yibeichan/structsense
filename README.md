@@ -27,11 +27,12 @@ Whether you're working with scientific texts, documents, or messy data, `structs
 
 To configure `structsense`, you need to set the following environment variables (e.g., in a `.env` file). WEAVIATE is a vector database that we use to store the knolwledge, which in our case is the ontology/schemas.
 
-#### 🧠 Core API Keys
+#### 🧠 Core Keys
 
-| Variable              | Description                                  | Default           |
-|-----------------------|----------------------------------------------|-------------------|
-| `WEAVIATE_API_KEY`    | **Required.** API key for Weaviate access    | —                 |
+| Variable              | Description                                  | Default          |
+|-----------------------|----------------------------------------------|------------------|
+ | `ENABLE_KG_SOURCE`    | Enable access to knowledge source, i.e., vector database.| `false`|
+| `WEAVIATE_API_KEY`    | **Required.** API key for Weaviate access    | —                |
 
 #### 🌐 [Weaviate](https://weaviate.io/) Configuration
 
@@ -67,7 +68,6 @@ To configure `structsense`, you need to set the following environment variables 
 | `ENABLE_WEIGHTSANDBIAS` | Enable [Weights & Biases](https://wandb.ai/site) monitoring (`true/false`) | `false`           |
 | `ENABLE_MLFLOW`        | Enable [MLflow](https://mlflow.org/) logging (`true/false`)                | `false`           |
 | `MLFLOW_TRACKING_URL`  | MLflow tracking server URL                                                 | `http://localhost:5000` |
- | `ENABLE_KG_SOURCE`    | Enable access to knowledge source, i.e., vector database.                  | `false`                |
 > ⚠️ **Note**: `WEAVIATE_API_KEY` is **required** for `structsense` to run. If it's not set, the system will raise an error.
 >   For Weights & Biases you need to create a project and provide it's key.
 

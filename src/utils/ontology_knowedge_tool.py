@@ -26,7 +26,13 @@ def OntologyKnowledgeTool(data, search_key=["entity", "label"]):
         return "Error: Missing required input: data."
 
     # Dynamically locate nested dictionaries that contain lists of dicts
-    data = json.loads(data)
+    try:
+        data = json.loads(data)
+    except json.JSONDecodeError as e:
+        #it is of the format ```json {} ```
+        cleaned_json_str = data.strip().removeprefix("```json").removesuffix("```").strip()
+        data = json.loads(cleaned_json_str)
+
     term_collections = []
     if isinstance(data, dict):
         for _, val in data.items():
