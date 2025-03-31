@@ -4,7 +4,6 @@ config/agents.yaml
 # Mac
 .DS_Store
 crew_memory/
-example/
 .venv/
 .*/*
 .ipynb_checkpoints
