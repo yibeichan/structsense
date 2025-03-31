@@ -20,8 +20,90 @@ Whether you're working with scientific texts, documents, or messy data, `structs
 - Entity and relation extraction from text
 - Knowledge graph construction
 
+## 📄 Requirements
+### GROBID Service
+You need GROBID service running if you plan to use PDF files as input. For the raw input text, you do not use GROBID.
+
+```shell
+docker pull lfoppiano/grobid:0.8.0
+docker run --init -p 8070:8070 -e JAVA_OPTS="-XX:+UseZGC" lfoppiano/grobid:0.8.0
+```
+JAVA_OPTS="-XX:+UseZGC" helps to resolve the following error in MAC OS.
+
+
 ## 📄 Configuration
-`structsense` uses environment variables and a YAML configuration file to customize agent behaviors, prompt templates, and other pipeline parameters.
+`structsense` supports flexible customization through both environment variables and a YAML configuration file.
+
+The YAML config can be passed as a parameter (e.g., `--agentconfig config/ner_agent.yaml`), allowing you to define models, agents, and behaviors specific to your use case.
+
+### 📄 YAML Configuration
+In order to run `structsense` you need 5 YAML configuration files.
+- The first is the `agent configuration`.
+  - The agent configuration. You can define as many agents as you want, we process it dynamically.
+    - Example agent configuration.
+      ```yaml 
+      agents:
+        - id: extractor_agent
+          output_variable: extracted_info
+          role: >
+            [Entity Extraction Agent]
+          goal: >
+            Perform Named Entity Recognition (NER) or entity extraction on {input_data} and return structured JSON output.
+          backstory: >
+            You are an AI assistant specialized in information extraction for a specific domain. 
+            Your expertise includes identifying and classifying entities relevant to the task, such as concepts, locations, people, or other domain-specific items. 
+            You respond strictly in structured JSON to ensure compatibility with downstream systems.
+          llm:
+            model: openrouter/openai/gpt-4o-2024-11-20
+            base_url: https://openrouter.ai/api/v1
+            frequency_penalty: 0.1
+            temperature: 0.7
+            seed: 53
+            api_key: YOUR_API_KEY_HERE  # Replace with your actual API key or use env var
+      
+          - id: alignment_agent
+            output_variable: aligned_entities
+            role: >
+              [Concept Alignment Agent]
+            goal: >
+              Align extracted entities from {extracted_info} with domain-specific ontologies or schema models and return structured JSON.
+            backstory: >
+              You are an AI assistant with expertise in linking extracted terms to formal knowledge representations such as taxonomies, schemas, or ontologies. 
+              Your responses help enrich and normalize the raw extracted data for semantic interoperability.
+            llm:
+              model: openrouter/openai/gpt-4o-2024-11-20
+              base_url: https://openrouter.ai/api/v1
+              frequency_penalty: 0.1
+              temperature: 0.7
+              seed: 53
+              api_key: YOUR_API_KEY_HERE
+    
+          - id: judge_agent
+            output_variable: reviewed_output
+            role: >
+              [Judgment & Scoring Agent]
+            goal: >
+              Evaluate the {aligned_entities} based on predefined criteria and return structured feedback and scores in JSON format.
+            backstory: >
+              You are an evaluation-focused AI agent that reviews entity alignment or extraction quality based on accuracy, consistency, or relevance. 
+              You assign a confidence score (e.g., from 0 to 1) and provide justification or flags where applicable.
+            llm:
+              model: openrouter/openai/gpt-4o-2024-11-20
+              base_url: https://openrouter.ai/api/v1
+              frequency_penalty: 0.1
+              temperature: 0.7
+              seed: 53
+              api_key: YOUR_API_KEY_HERE 
+        ```
+    - In the YAML file: 
+        - **ID**: Unique identifier
+        - **Goal**: Task to be performed
+        - **LLM config**: Model, base URL, temperature, etc.
+        - **Backstory**: Background knowledge the agent leverages
+        - **Output variable**: Result name for the next agent/task
+      
+    For further details, refer to [Role-Goal-Backstory](https://docs.crewai.com/guides/agents/crafting-effective-agents#core-principles-of-effective-agent-design)
+- The second is the `task configuration`, that describes the tasks for the agent.
 
 ### 🔧 Environment Variables
 
