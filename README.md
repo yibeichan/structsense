@@ -144,9 +144,7 @@ In this minimal setup:
 ```shell 
 ENABLE_WEIGHTSANDBIAS=false
 ENABLE_MLFLOW=false
-ENABLE_KG_SOURCE=false 
-OLLAMA_API_ENDPOINT=http://host.docker.internal:11434
-OLLAMA_MODEL=nomic-embed-text 
+ENABLE_KG_SOURCE=false  
 ```
 ---
 
