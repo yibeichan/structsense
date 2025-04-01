@@ -202,6 +202,7 @@ def kickoff(
     input_source: str,
     knowledgeconfig: str = None
 ):
+    # process_input_data checks if the input is file or raw string and calls the grobid extractor. Its imported from utils
     processed_string = process_input_data(input_source)
 
     flow = StructSenseFlow(
