@@ -409,6 +409,6 @@ structsense-cli extract \
 ```
 
 ## In progress
-- [ ] More examples (e.g., using ollama)
+- [X] [`More examples (e.g., using ollama)`](example/ner_example_ollama)
 - [ ] Validations (e.g., benchmarking)
 - [ ] Human feedback component.
