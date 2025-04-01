@@ -28,6 +28,13 @@ The below is the architecture of the `StructSense`.
 ## 🧠 Example Use Cases
 - Entity and relation extraction from text
   - Knowledge graph construction
+
+## 📁Examples
+
+-  [`Using openrouter/`](./example/ner_example) 
+  - You need the openrouter API key
+- [`Using Ollama`](./example/ner_example_ollama) 
+  - Install ollama and pull the models which you intend to use. This example uses `deepseek-r1:14b` model. You can get it from ollama by running `ollama pull deepseek-r1:14b` command. If you want to use different models, e.g., `llama3.2:latest`, you need to pull it similar to `deepseek-r1:14b`. Make sure that ollama is running. You can run ollama using `ollama serve`.
 ---
 ## 📄 Requirements
 ### GROBID Service
@@ -49,6 +56,8 @@ The YAML config can be passed as a parameter (e.g., `--agentconfig config/ner_ag
 ### 🔧 Environment Variables
 
 You need to set the following environment variables (e.g., in a `.env` file). WEAVIATE is a vector database that we use to store the knolwledge, which in our case is the ontology/schemas.
+
+- WEAVIATE related environment variables are only necessary if you want to use vector database as a knowledge source.
 
 #### 🧠 Core Keys
 
@@ -364,9 +373,6 @@ Or get the newest development version via:
 ```sh
 pip install git+https://github.com/sensein/ner_framework.git
 ```
-## Example
-
-📁 **Examples**: Check out the [`example/`](./example) directory for more usage.
 
 ### 🧪 CLI Usage
 
