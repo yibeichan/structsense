@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 ONTOLOGY_DATABASE = os.getenv("ONTOLOGY_DATABASE", "ontology_database_agentpy")
 GROBID_SERVER_URL = os.getenv("GROBID_SERVER_URL", "http://localhost:8070")
 
-def process_input_data(source:str): 
+def process_input_data(source:str):
     if isinstance(source, str):
         # Try different path resolutions
         paths_to_try = [
@@ -65,7 +65,7 @@ def process_input_data(source:str):
         # Check if this is raw text input
         is_raw_text = (
             # If it's a very long string, treat as raw text
-                len(source) > 500 or
+                len(source) > 10 or
                 # Or if it contains newlines
                 '\n' in source or
                 # Or if it doesn't look like a path and no paths exist
