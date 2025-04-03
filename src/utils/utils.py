@@ -64,12 +64,15 @@ def process_input_data(source:str):
 
         # Check if this is raw text input
         is_raw_text = (
-            # If it's a very long string, treat as raw text
-                len(source) > 10 or
+            # do not contains any extensions like .pdf
+                (not source.lower().endswith(".pdf")) or
+                # If it's a very long string, treat as raw text
+                len(source) > 500 or
                 # Or if it contains newlines
                 '\n' in source or
                 # Or if it doesn't look like a path and no paths exist
                 (not ('/' in source or '\\' in source) and not any(p.exists() for p in paths_to_try))
+
         )
 
         if is_raw_text:
