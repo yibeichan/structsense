@@ -1,6 +1,6 @@
 import warnings
-from typing import Dict, Any, Optional, List
 from pathlib import Path
+from typing import Any, Dict, Optional
 
 warnings.filterwarnings("ignore")
 
@@ -9,20 +9,20 @@ import os
 import sys
 import tracemalloc
 from dataclasses import dataclass
-
+from typing import Union, Optional
 from crewai import Crew
-from crewai.flow.flow import Flow, start, listen
+from crewai.flow.flow import Flow, start
+from crewai.knowledge.source.string_knowledge_source import StringKnowledgeSource
 from crewai.memory import EntityMemory, LongTermMemory, ShortTermMemory
 from crewai.memory.storage.ltm_sqlite_storage import LTMSQLiteStorage
 from crewai.memory.storage.rag_storage import RAGStorage
 from dotenv import load_dotenv
-from crewai.knowledge.source.string_knowledge_source import StringKnowledgeSource
+
 from crew.dynamic_agent import DynamicAgent
 from crew.dynamic_agent_task import DynamicAgentTask
-from utils.utils import load_config
 from utils.ontology_knowedge_tool import OntologyKnowledgeTool
-from utils.utils import process_input_data
-from utils.utils import extract_json_from_text
+from utils.utils import extract_json_from_text, load_config, process_input_data
+
 
 @dataclass
 class FlowConfig:
@@ -304,9 +304,9 @@ class StructSenseFlow(Flow):
             custom_source = OntologyKnowledgeTool(
                 self.state[src_key], self.knowledgeconfig["search_key"]
             )
-            logger.debug("*"*100)
+            logger.debug("*" * 100)
             logger.debug(custom_source)
-            logger.debug("*"*100)
+            logger.debug("*" * 100)
             return StringKnowledgeSource(content=custom_source)
         except Exception as e:
             logger.warning(f"Failed to create knowledge source: {str(e)}")
@@ -329,12 +329,12 @@ class StructSenseFlow(Flow):
 
 
 def kickoff(
-        agentconfig: str,
-        taskconfig: str,
-        embedderconfig: str,
-        flowconfig: str,
-        input_source: str,
-        knowledgeconfig: Optional[str] = None
+        agentconfig: Union[str, dict],
+        taskconfig: Union[str, dict],
+        embedderconfig: Union[str, dict],
+        flowconfig: Union[str, dict],
+        input_source: Union[str, dict],
+        knowledgeconfig: Optional[Union[str, dict]] = None
 ) -> Dict[str, Any]:
     """Run the StructSense flow with the given configurations"""
     try:
