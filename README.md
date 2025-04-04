@@ -37,14 +37,42 @@ The below is the architecture of the `StructSense`.
   - Install ollama and pull the models which you intend to use. This example uses `deepseek-r1:14b` model. You can get it from ollama by running `ollama pull deepseek-r1:14b` command. If you want to use different models, e.g., `llama3.2:latest`, you need to pull it similar to `deepseek-r1:14b`. Make sure that ollama is running. You can run ollama using `ollama serve`.
 ---
 ## 📄 Requirements
-### GROBID Service
-You need GROBID service running if you plan to use PDF files as input. For the raw input text, you do not use GROBID.
+### 📄 PDF Extraction Configuration
 
+By default, the system uses the **local Grobid service** for PDF content extraction. If you have Grobid installed locally, **no additional setup is required** — everything is preconfigured for local usage.
+
+**Grobid Installation via Docker**
 ```shell
 docker pull lfoppiano/grobid:0.8.0
 docker run --init -p 8070:8070 -e JAVA_OPTS="-XX:+UseZGC" lfoppiano/grobid:0.8.0
 ```
 JAVA_OPTS="-XX:+UseZGC" helps to resolve the following error in MAC OS.
+
+---
+
+#### 🔧 Using a Remote Grobid Server
+
+If you're running Grobid on a **remote server**, set the following environment variable:
+
+```bash
+GROBID_SERVER_URL_OR_EXTERNAL_SERVICE=http://your-remote-grobid-server:PORT
+
+```
+
+### 🌐 Using an External PDF Extraction API
+If you prefer to use an external PDF extraction API service, you must:
+
+- Set the API endpoint:
+
+  ```shell
+    GROBID_SERVER_URL_OR_EXTERNAL_SERVICE=https://api.SOMEAPIENDPOINT.com/api/extract
+  ```
+- Enable the external API mode:
+  ```shell
+    EXTERNAL_PDF_EXTRACTION_SERVICE=True
+  ```
+> Note:
+At the moment, the external API is assumed to be publicly accessible and does not require authentication (e.g., no JWT token or API key). Support for authenticated requests may be added in future versions.
 
 ---
 
@@ -94,7 +122,7 @@ This configuration is optional and only necessary if you plan to integrate a kno
 | `OLLAMA_MODEL`        | Name of the Ollama embedding model            | `nomic-embed-text`                      |
 
 > ⚠️ **Note**:  If ollama is running in host machine and vector database, i.e., WEAVIATE, in docker, then we use `http://host.docker.internal:11434`, which is also the default value. However, if both are running in docker in the same host, use `http://localhost:11434 `.
-#### 🧵 Optional Integrations
+#### 🧵 Optional: Experiment Tracking
 
 | Variable               | Description                                                                | Default           |
 |------------------------|----------------------------------------------------------------------------|-------------------|

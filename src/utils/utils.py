@@ -33,6 +33,9 @@ from weaviate.classes.init import AdditionalConfig, Timeout, Auth
 from dotenv import load_dotenv
 from weaviate.classes.config import Property, DataType, Configure, VectorDistances
 from GrobidArticleExtractor import GrobidArticleExtractor
+import requests
+from requests.exceptions import RequestException
+
 
 # Load environment variables from a .env file if present
 load_dotenv()
@@ -47,7 +50,8 @@ logger = logging.getLogger(__name__)
 
 
 ONTOLOGY_DATABASE = os.getenv("ONTOLOGY_DATABASE", "ontology_database_agentpy")
-GROBID_SERVER_URL = os.getenv("GROBID_SERVER_URL", "http://localhost:8070")
+GROBID_SERVER_URL_OR_EXTERNAL_SERVICE = os.getenv("GROBID_SERVER_URL_OR_EXTERNAL_SERVICE", "http://localhost:8070")
+EXTERNAL_PDF_EXTRACTION_SERVICE = os.getenv("EXTERNAL_PDF_EXTRACTION_SERVICE", "False")
 
 def process_input_data(source:str):
     if isinstance(source, str):
@@ -112,9 +116,9 @@ def process_input_data(source:str):
             file_path=source_path
         )
 
-def extract_pdf_content(file_path: str, grobid_server: str = GROBID_SERVER_URL) -> dict:
+def extract_pdf_content(file_path: str, grobid_server: str = GROBID_SERVER_URL_OR_EXTERNAL_SERVICE, external_service: str = EXTERNAL_PDF_EXTRACTION_SERVICE) -> dict:
     """
-    Extracts content from a PDF file using GrobidArticleExtractor.
+    Extracts content from a PDF file using GrobidArticleExtractor. or uses the external service
     https://github.com/sensein/EviSense/blob/experiment/src/EviSense/shared.py
 
     This function processes the given PDF file and extracts its contents.
@@ -131,59 +135,78 @@ def extract_pdf_content(file_path: str, grobid_server: str = GROBID_SERVER_URL) 
                 - "heading" (str): The heading/title of the section.
                 - "content" (str): The textual content of the section.
     """
-    if grobid_server is None:
-        # default localhost
-        extractor = GrobidArticleExtractor()
-    else:
-        extractor = GrobidArticleExtractor(grobid_url=grobid_server)
+    is_external_service = external_service.lower() == "true"
+    if not is_external_service:
+        logging.debug("Using GROBID_SERVICE: {}".format(grobid_server))
+        if grobid_server is None:
+            # default localhost
+            extractor = GrobidArticleExtractor()
+        else:
+            extractor = GrobidArticleExtractor(grobid_url=grobid_server)
 
-    xml_content = extractor.process_pdf(file_path)
-    result = extractor.extract_content(xml_content)
+        xml_content = extractor.process_pdf(file_path)
+        result = extractor.extract_content(xml_content)
 
-    try:
-        extracted_data = {
-            "metadata": result.get("metadata", {}),
-            "sections": []
-        }
+        try:
+            extracted_data = {
+                "metadata": result.get("metadata", {}),
+                "sections": []
+            }
 
-        # Process sections
-        sections = result.get("sections", [])
-        if not sections:
-            logger.warning("No sections found in PDF")
-            # Create a single section with all content if available
-            if content := result.get("content"):
-                sections = [{
-                    "heading": "Content",
+            # Process sections
+            sections = result.get("sections", [])
+            if not sections:
+                logger.warning("No sections found in PDF")
+                # Create a single section with all content if available
+                if content := result.get("content"):
+                    sections = [{
+                        "heading": "Content",
+                        "content": content
+                    }]
+
+            # Add sections to extracted data
+            for section in sections:
+                if not isinstance(section, dict):
+                    logger.warning(f"Skipping invalid section format: {type(section)}")
+                    continue
+
+                heading = str(section.get("heading", "")).strip()
+                content = str(section.get("content", "")).strip()
+
+                if not content:
+                    logger.warning(f"Skipping empty section: {heading}")
+                    continue
+
+                extracted_data["sections"].append({
+                    "heading": heading,
                     "content": content
-                }]
+                })
 
-        # Add sections to extracted data
-        for section in sections:
-            if not isinstance(section, dict):
-                logger.warning(f"Skipping invalid section format: {type(section)}")
-                continue
+            if not extracted_data["sections"]:
+                raise Exception("No valid content could be extracted from PDF")
 
-            heading = str(section.get("heading", "")).strip()
-            content = str(section.get("content", "")).strip()
+            logger.info(f"Successfully extracted {len(extracted_data['sections'])} sections")
+            return extracted_data
 
-            if not content:
-                logger.warning(f"Skipping empty section: {heading}")
-                continue
+        except Exception as e:
+            logger.error(f"Error in extract_pdf_content: {str(e)}")
+            raise
+    else:
+        logging.debug("Using EXTERNAL PDF SERVICE: {}".format(grobid_server))
 
-            extracted_data["sections"].append({
-                "heading": heading,
-                "content": content
-            })
+        with open(file_path, 'rb') as f:
+            files = {'file': (str(file_path), f, 'application/pdf')}  # convert Path to str
+            headers = {'Accept': 'application/json'}
+            response = requests.post(grobid_server,
+                                     files=files,
+                                     headers=headers)
 
-        if not extracted_data["sections"]:
-            raise Exception("No valid content could be extracted from PDF")
+        response.raise_for_status()
+        data =  response.json()
+        print("*" * 100)
+        return data
 
-        logger.info(f"Successfully extracted {len(extracted_data['sections'])} sections")
-        return extracted_data
 
-    except Exception as e:
-        logger.error(f"Error in extract_pdf_content: {str(e)}")
-        raise
 
 def get_weaviate_client():
     """
