@@ -49,10 +49,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-ONTOLOGY_DATABASE = os.getenv("ONTOLOGY_DATABASE", "ontology_database_agentpy")
-GROBID_SERVER_URL_OR_EXTERNAL_SERVICE = os.getenv("GROBID_SERVER_URL_OR_EXTERNAL_SERVICE", "http://localhost:8070")
-EXTERNAL_PDF_EXTRACTION_SERVICE = os.getenv("EXTERNAL_PDF_EXTRACTION_SERVICE", "False")
-
 def process_input_data(source:str):
     if isinstance(source, str):
         # Try different path resolutions
@@ -112,11 +108,16 @@ def process_input_data(source:str):
         # Process single file
     if source_path.is_file():
         logger.info(f"Processing single file: {source_path}")
+        GROBID_SERVER_URL_OR_EXTERNAL_SERVICE = os.getenv("GROBID_SERVER_URL_OR_EXTERNAL_SERVICE",
+                                                          "http://localhost:8070")
+        EXTERNAL_PDF_EXTRACTION_SERVICE = os.getenv("EXTERNAL_PDF_EXTRACTION_SERVICE", "False")
         return extract_pdf_content(
-            file_path=source_path
+            file_path=source_path,
+            grobid_server=GROBID_SERVER_URL_OR_EXTERNAL_SERVICE,
+            external_service=EXTERNAL_PDF_EXTRACTION_SERVICE
         )
 
-def extract_pdf_content(file_path: str, grobid_server: str = GROBID_SERVER_URL_OR_EXTERNAL_SERVICE, external_service: str = EXTERNAL_PDF_EXTRACTION_SERVICE) -> dict:
+def extract_pdf_content(file_path: str, grobid_server: str , external_service: str ) -> dict:
     """
     Extracts content from a PDF file using GrobidArticleExtractor. or uses the external service
     https://github.com/sensein/EviSense/blob/experiment/src/EviSense/shared.py
@@ -136,6 +137,10 @@ def extract_pdf_content(file_path: str, grobid_server: str = GROBID_SERVER_URL_O
                 - "content" (str): The textual content of the section.
     """
     is_external_service = external_service.lower() == "true"
+    logger.debug("*"*100)
+    logger.debug("printing from structsense")
+    logger.debug(external_service, grobid_server)
+    logger.debug("*" * 100)
     if not is_external_service:
         logging.debug("Using GROBID_SERVICE: {}".format(grobid_server))
         if grobid_server is None:
@@ -286,6 +291,8 @@ def create_ontology_collection(client):
         dict: Dictionary containing status (boolean) and a message.
     """
     try:
+
+        ONTOLOGY_DATABASE = os.getenv("ONTOLOGY_DATABASE", "ontology_database_agentpy")
         # Check if the collection already exists
         collection = client.collections.get(ONTOLOGY_DATABASE)
         if collection.exists():
