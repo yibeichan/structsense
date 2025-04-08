@@ -23,7 +23,7 @@ from utils.types import ExtractedTermsDynamic, AlignedTermsDynamic, JudgedTermsD
 from crew.dynamic_agent import DynamicAgent
 from crew.dynamic_agent_task import DynamicAgentTask
 from utils.ontology_knowedge_tool import OntologyKnowledgeTool
-from utils.utils import extract_json_from_text, load_config, process_input_data
+from utils.utils import load_config, process_input_data
 
 # Start memory tracking
 tracemalloc.start()
