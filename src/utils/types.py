@@ -16,49 +16,15 @@
 # @File    : types.py
 # @Software: PyCharm
 
+from typing import Dict, List, Any
 from pydantic import BaseModel
-from typing import List, Dict
 
 
-from pydantic import BaseModel
-from typing import List, Dict
+class ExtractedTermsDynamic(BaseModel):
+    extracted_structured_information: Dict[str, List[Dict[str, Any]]]
 
+class AlignedTermsDynamic(BaseModel):
+    aligned_structured_information: Dict[str, List[Dict[str, Any]]]
 
-class StructuredInformation(BaseModel):
-    """Represents a structured information in text."""
-
-    entity: str
-    label: str
-    sentence: str
-    start: int
-    end: int
-    paper_location: str
-    paper_title: str
-    doi: str
-
-
-class AlignedStructuredInformation(StructuredInformation):
-    """Represents an aligned term with ontology mapping."""
-
-    ontology_id: str
-    ontology_label: str
-
-
-class JudgedStructuredInformation(AlignedStructuredInformation):
-    judge_score: float
-
-
-class JudgeStructuredTerms(BaseModel):
-    aligned_judged_terms: Dict[str, List[JudgedStructuredInformation]]
-
-
-class AlignedStructuredTerms(BaseModel):
-    """Pydantic model to validate aligned  terms."""
-
-    aligned_ner_terms: Dict[str, List[AlignedStructuredInformation]]
-
-
-class ExtractedStructuredTerms(BaseModel):
-    """Pydantic model to validate extracted terms."""
-
-    extracted_terms: Dict[str, List[StructuredInformation]]
+class JudgedTermsDynamic(BaseModel):
+    judged_structured_information: Dict[str, List[Dict[str, Any]]]

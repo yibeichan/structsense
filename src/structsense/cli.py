@@ -35,14 +35,7 @@ def cli(ctx):
     type=str,
     help=("Path to the embedding configuration in YAML format or or dictionary"),
 )
-@click.option(
-    "--flowconfig",
-    required=True,
-    type=str,
-    help=(
-        "Path to the flow configuration in YAML format or or dictionary. The flow configuration describes the flow of the agent."
-    ),
-)
+
 @click.option(
     "--knowledgeconfig",
     required=False,
@@ -57,20 +50,19 @@ def cli(ctx):
     help=("The source—whether a file (text or PDF), a folder, or a text string."),
 )
 def extract(
-    agentconfig, taskconfig, embedderconfig, flowconfig, knowledgeconfig, source
+    agentconfig, taskconfig, embedderconfig, knowledgeconfig, source
 ):
     """Extract the terms along with sentence."""
     logger.info(
-        f"Processing source: {source} with agent config: {agentconfig}, task config: {taskconfig}, embedderconfig: {embedderconfig}, flowconfig: {flowconfig}, knowledgeconfig: {knowledgeconfig}"
+        f"Processing source: {source} with agent config: {agentconfig}, task config: {taskconfig}, embedderconfig: {embedderconfig}, knowledgeconfig: {knowledgeconfig}"
     )
     click.echo(
-        f"Processing source: {source} with agent config: {agentconfig}, task config: {taskconfig}, embedderconfig: {embedderconfig} knowledgeconfig: {knowledgeconfig} flowconfig: {flowconfig}"
+        f"Processing source: {source} with agent config: {agentconfig}, task config: {taskconfig}, embedderconfig: {embedderconfig} knowledgeconfig: {knowledgeconfig}"
     )
     result = kickoff(
         agentconfig=agentconfig,
         taskconfig=taskconfig,
         embedderconfig=embedderconfig,
-        flowconfig=flowconfig,
         knowledgeconfig=knowledgeconfig,
         input_source=source,
     )
