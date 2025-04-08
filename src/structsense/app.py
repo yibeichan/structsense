@@ -1,61 +1,36 @@
 import warnings
-from pathlib import Path
-from typing import Any, Dict, Optional
-
 warnings.filterwarnings("ignore")
+
 
 import logging
 import os
 import sys
 import tracemalloc
 from dataclasses import dataclass
-from typing import Union, Optional
+from typing import Union, Optional, Dict, Any
 from crewai import Crew
-from crewai.flow.flow import Flow, start
+from crewai.flow.flow import Flow, listen, start
 from crewai.knowledge.source.string_knowledge_source import StringKnowledgeSource
 from crewai.memory import EntityMemory, LongTermMemory, ShortTermMemory
 from crewai.memory.storage.ltm_sqlite_storage import LTMSQLiteStorage
 from crewai.memory.storage.rag_storage import RAGStorage
 from dotenv import load_dotenv
-
+from utils.types import ExtractedTermsDynamic, AlignedTermsDynamic, JudgedTermsDynamic
 from crew.dynamic_agent import DynamicAgent
 from crew.dynamic_agent_task import DynamicAgentTask
 from utils.ontology_knowedge_tool import OntologyKnowledgeTool
 from utils.utils import extract_json_from_text, load_config, process_input_data
-
-
-@dataclass
-class FlowConfig:
-    agent_config: str
-    task_config: str
-    embedder_config: str
-    flow_config: str
-    knowledge_config: Optional[str]
-    source_text: str
-
-
-class StructSenseError(Exception):
-    """Base exception for StructSense errors"""
-    pass
-
-
-class ConfigError(StructSenseError):
-    """Raised when there's an error in configuration"""
-    pass
-
-
-class FlowExecutionError(StructSenseError):
-    """Raised when there's an error during flow execution"""
-    pass
-
-
+from pathlib import Path
 tracemalloc.start()
+
+
 load_dotenv()
 
+
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -72,50 +47,30 @@ if os.getenv("ENABLE_MLFLOW", "false").lower() == "true":
     mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URL", "http://localhost:5000"))
     mlflow.set_experiment("StructSense")
 
-
 class StructSenseFlow(Flow):
-    def __init__(
-            self,
-            agent_config: str,
-            task_config: str,
-            embedder_config: str,
-            flow_config: str,
-            knowledge_config: Optional[str],
-            source_text: str,
-    ):
+    def __init__(self, agent_config: str, task_config: str, embedder_config: str, knowledge_config: Optional[str],
+                 source_text: str):
         super().__init__()
-        try:
-            self.source_text = source_text
-            self._load_configurations(agent_config, task_config, embedder_config, flow_config, knowledge_config)
-            self._initialize_memory()
-            self._initialize_state()
-        except Exception as e:
-            raise ConfigError(f"Failed to initialize StructSenseFlow: {str(e)}")
 
-    def _load_configurations(
-            self,
-            agent_config: str,
-            task_config: str,
-            embedder_config: str,
-            flow_config: str,
-            knowledge_config: Optional[str]
-    ) -> None:
-        """Load and validate all configurations"""
+        logger.info(f"Initializing StructSenseFlow with source: {source_text}")
+        self.source_text = source_text
+
+        # Load configurations with error handling
         try:
-            raw_agent_config = load_config(agent_config, "agent")
-            raw_task_config = load_config(task_config, "task")
-            self.agentconfig = {agent["id"]: agent for agent in raw_agent_config["agents"]}
-            self.taskconfig = {task["id"]: task for task in raw_task_config["tasks"]}
+            self.agentconfig = load_config(agent_config, "agent")
+            self.taskconfig = load_config(task_config, "task")
             self.embedderconfig = load_config(embedder_config, "embedder")
-            self.flowconfig = load_config(flow_config, "flow")
-
             if knowledge_config is None:
                 os.environ["ENABLE_KG_SOURCE"] = "false"
                 self.knowledgeconfig = {"search_key": {}}
             else:
                 self.knowledgeconfig = load_config(knowledge_config, "knowledge")
         except Exception as e:
-            raise ConfigError(f"Failed to load configurations: {str(e)}")
+            logger.error(f"Configuration loading failed: {e}")
+            raise
+
+        # Initialize memory components
+        self._initialize_memory()
 
     def _initialize_memory(self) -> None:
         """Initialize memory storage systems"""
@@ -143,189 +98,231 @@ class StructSenseFlow(Flow):
         except Exception as e:
             raise ConfigError(f"Failed to initialize memory systems: {str(e)}")
 
-    def _initialize_state(self) -> None:
-        """Initialize the flow state"""
-        if not hasattr(self, "state") or self.state is None:
-            self.__dict__["state"] = {}
-        self.state["source_text"] = self.source_text
-
-    def interpolate(self, template, context):
-        import re
-
-        pattern = re.compile(r"\{\{(.*?)\}\}")
-
-        def resolve_path(path, ctx):
-            keys = path.strip().split(".")
-            val = ctx
-            for key in keys:
-                val = val.get(key) if isinstance(val, dict) else None
-                if val is None:
-                    break
-            return val
-
-        def replacer(match):
-            path = match.group(1).strip()
-            val = resolve_path(path, context)
-            return str(val) if val is not None else ""
-
-        result = pattern.sub(replacer, template)
-        logger.debug(f"Interpolated: {template} -> {result}")
-        return result
-
-    @start("start")
-    def kickoff_flow(self) -> Dict[str, Any]:
-        """Start the flow execution"""
+    def initialize_extractor(self, agent_config: Dict, task_config: Dict):
+        """Initialize the information extractor agent and task."""
         try:
-            # Validate flow configuration
-            if not self.flowconfig or "flow" not in self.flowconfig:
-                raise ConfigError("Flow configuration is missing or invalid")
+            extractor_agent_init = DynamicAgent(agents_config=agent_config["extractor_agent"],
+                                                embedder_config=self.embedderconfig)
+            extractor_task_init = DynamicAgentTask(tasks_config=task_config["extraction_task"])
 
-            # Execute each step in the flow
-            for step in self.flowconfig["flow"]:
-                if not isinstance(step, dict):
-                    raise ConfigError(f"Invalid step configuration: {step}")
+            extractor_agent = extractor_agent_init.build_agent()
+            extractor_task = extractor_task_init.build_task(pydantic_output=ExtractedTermsDynamic, agent=extractor_agent)
 
-                # Add step ID if missing
-                if "id" not in step:
-                    step["id"] = f"step_{len(self.flowconfig['flow'])}"
+            if not extractor_task:
+                logger.error("Extractor task initialization failed.")
+                return None, None
 
-                # Execute the step and return output if it's the last step
-                result = self.run_step(step)
-                if step == self.flowconfig["flow"][-1]:
-                    return result
-
-            return {"output": None}
-
+            return extractor_agent, extractor_task
         except Exception as e:
-            logger.error(f"Flow execution failed: {str(e)}")
-            raise FlowExecutionError(f"Flow execution failed: {str(e)}")
+            logger.error(f"Extractor initialization failed: {e}")
+            return None, None
 
-    def run_step(self, step: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a single step in the flow"""
+    def initialize_alignment(self, agent_config: Dict, task_config: Dict):
+        """Initialize the concept alignment agent and task."""
         try:
-            # Debug logging for step object
-            logger.debug(f"Received step object: {step}")
+            alignment_agent_init = DynamicAgent(agents_config=agent_config["alignment_agent"],
+                                                embedder_config=self.embedderconfig)
+            alignment_task_init = DynamicAgentTask(tasks_config=task_config["alignment_task"])
 
-            # Validate step object
-            if not isinstance(step, dict):
-                raise ConfigError(f"Invalid step object: {step}")
 
-            # Get step ID with fallback
-            step_id = step.get('id', 'unknown_step')
-            logger.info(f"Running step: {step_id}")
+            alignment_agent = alignment_agent_init.build_agent()
+            alignment_task = alignment_task_init.build_task(pydantic_output=AlignedTermsDynamic, agent=alignment_agent)
 
-            # Validate required fields
-            required_fields = ['agent_key', 'task_key']
-            missing_fields = [field for field in required_fields if field not in step]
-            if missing_fields:
-                raise ConfigError(f"Step {step_id} is missing required fields: {', '.join(missing_fields)}")
+            if not alignment_task:
+                logger.error("Alignment task initialization failed.")
+                return None, None
 
-            agent_key = step["agent_key"]
-            task_key = step["task_key"]
-
-            if agent_key not in self.agentconfig:
-                raise ConfigError(f"Agent {agent_key} not found in configuration")
-            if task_key not in self.taskconfig:
-                raise ConfigError(f"Task {task_key} not found in configuration")
-
-            agent_def = self.agentconfig[agent_key]
-            agent_builder = DynamicAgent([agent_def], self.embedderconfig, [])
-            agents_by_id = agent_builder.build_agents()
-            agent = agents_by_id[agent_key]
-
-            task_builder = DynamicAgentTask([self.taskconfig[task_key]])
-            tasks = task_builder.build_tasks(agents_by_id)
-            task = tasks[0]
-
-            inputs = {
-                k: self.interpolate(v, self.state)
-                for k, v in step.get("inputs", {}).items()
-            }
-
-            crew_kwargs = self._prepare_crew_kwargs(agent, task, step)
-            crew = Crew(**crew_kwargs)
-            result = crew.kickoff(inputs=inputs)
-
-            # Log step output for debugging
-            if hasattr(task, 'output') and task.output:
-                logger.debug(f"Step {step_id} output: {task.output.raw}")
-
-            self._update_state(agent_key, task, step)
-
-            # Format and return the output
-            if hasattr(task, 'output') and task.output:
-                output = task.output.raw
-                if isinstance(output, str):
-                    try:
-                        output = extract_json_from_text(output)
-                    except ValueError:
-                        # If JSON extraction fails, return the raw string
-                        pass
-                return {"output": output}
-
-            return {"output": None}
-
+            return alignment_agent, alignment_task
         except Exception as e:
-            logger.error(f"Step execution failed: {str(e)}")
-            raise FlowExecutionError(f"Step execution failed: {str(e)}")
+            logger.error(f"Alignment initialization failed: {e}")
+            return None, None
 
-    def _prepare_crew_kwargs(self, agent: Any, task: Any, step: Dict[str, Any]) -> Dict[str, Any]:
-        """Prepare crew configuration"""
-        crew_kwargs = {
-            "agents": [agent],
-            "tasks": [task],
-            "memory": True,
-            "long_term_memory_config": self.long_term_memory,
-            "short_term_memory": self.short_term_memory,
-            "entity_memory": self.entity_memory,
-            "verbose": False,
-        }
-
-        if self._should_enable_knowledge_source(step):
-            ksrc = self._create_knowledge_source(step)
-            if ksrc:
-                crew_kwargs["knowledge_sources"] = [ksrc]
-
-        return crew_kwargs
-
-    def _should_enable_knowledge_source(self, step: Dict[str, Any]) -> bool:
-        """Check if knowledge source should be enabled"""
-        return (
-                os.getenv("ENABLE_KG_SOURCE", "false").lower() == "true"
-                and "knowledge_source" in step
-                and step["knowledge_source"] in self.state
-        )
-
-    def _create_knowledge_source(self, step: Dict[str, Any]) -> Optional[StringKnowledgeSource]:
-        """Create knowledge source if needed"""
+    def initialize_judge(self, agent_config: Dict, task_config: Dict):
+        """Initialize the concept alignment agent and task."""
         try:
-            src_key = step["knowledge_source"]
-            logger.info(f"Knowledge source response str: {self.knowledgeconfig['search_key']}")
-            custom_source = OntologyKnowledgeTool(
-                self.state[src_key], self.knowledgeconfig["search_key"]
-            )
-            logger.debug("*" * 100)
-            logger.debug(custom_source)
-            logger.debug("*" * 100)
-            return StringKnowledgeSource(content=custom_source)
+            judge_agent_init = DynamicAgent(agents_config=agent_config["judge_agent"],  embedder_config=self.embedderconfig)
+            judge_task_init = DynamicAgentTask(tasks_config=task_config["judge_task"])
+
+            judge_agent = judge_agent_init.build_agent()
+            judge_task = judge_task_init.build_task(pydantic_output=JudgedTermsDynamic, agent=judge_agent)
+
+            if not judge_task:
+                logger.error("Judge task initialization failed.")
+                return None, None
+
+            return judge_agent, judge_task
         except Exception as e:
-            logger.warning(f"Failed to create knowledge source: {str(e)}")
+            logger.error(f"Judge initialization failed: {e}")
+            return None, None
+
+    @start()
+    def process_inputs(self):
+        logger.debug("Starting processing ")
+
+    @listen(process_inputs)
+    async def extracted_structured_information(self):
+        logger.debug("Processing extracted_structured_information")
+        logger.info("Starting structured information extraction.")
+        logger.info(f"Source Text: {self.source_text}")
+
+        extractor_agent, extractor_task = self.initialize_extractor(self.agentconfig, self.taskconfig)
+        if not extractor_agent or not extractor_task:
+            logger.error("Extractor agent or task not initialized.")
             return None
 
-    def _update_state(self, agent_key: str, task: Any, step: Dict[str, Any]) -> None:
-        """Update the flow state with task output"""
-        try:
-            # Get step ID with fallback
-            step_id = step.get('id', 'unknown_step')
-            output_var = self.agentconfig.get(agent_key, {}).get("output_variable", step_id)
-            self.state[output_var] = task.output.raw
+        inputs = {"literature": self.source_text}
+        extractor_crew = Crew(
+            agents=[extractor_agent],
+            tasks=[extractor_task],
+            memory=True,
+            long_term_memory_config=self.long_term_memory,
+            short_term_memory=self.short_term_memory,
+            entity_memory=self.entity_memory,
+            verbose=True,
+        )
 
-            # Check if this is the last step
-            if step == self.flowconfig["flow"][-1]:
-                self.final_result = task.output
-        except Exception as e:
-            logger.error(f"Failed to update state: {str(e)}")
-            raise FlowExecutionError(f"Failed to update state: {str(e)}")
+        extractor_crew_result = extractor_crew.kickoff(inputs=inputs)
+        logger.debug(f"Extractor Crew Result: {extractor_crew_result}, {type(extractor_crew_result)}")
+
+        if not extractor_crew_result:
+            logger.warning("Extractor crew returned no results.")
+            return None
+
+        self.state["current_step"] = "extracted_structured_information"
+        print("*"*100)
+        print(extractor_crew_result.to_dict())
+        print("*"*100)
+        return extractor_crew_result.to_dict()
+
+    @listen(extracted_structured_information)
+    async def align_structured_information(self, data_from_previous_step_extracted_info):
+        if not data_from_previous_step_extracted_info:
+            logger.warning("No structured information extracted. Skipping alignment.")
+            return None
+
+        logger.info("Starting structured information alignment.")
+        alignment_agent, alignment_task = self.initialize_alignment(self.agentconfig, self.taskconfig)
+        if not alignment_agent or not alignment_task:
+            logger.error("Alignment agent or task not initialized.")
+            return None
+        # Tool is not used because of https://github.com/crewAIInc/crewAI/issues/949
+        if self._should_enable_knowledge_source():
+
+            custom_source = OntologyKnowledgeTool(data_from_previous_step_extracted_info,
+                                                  self.knowledgeconfig["search_key"])
+
+            logger.debug("#" * 100)
+            logger.debug("Knowledge source result")
+            logger.debug("-" * 100)
+            logger.debug(custom_source)
+            logger.debug("#" * 100)
+
+            ksrc = StringKnowledgeSource(
+                content=custom_source
+            )
+
+            alignment_crew = Crew(
+                agents=[alignment_agent],
+                tasks=[alignment_task],
+                memory=True,
+                knowledge_sources=[ksrc],
+                long_term_memory_config=self.long_term_memory,
+                short_term_memory=self.short_term_memory,
+                entity_memory=self.entity_memory,
+                verbose=True,
+            )
+        else:
+
+            alignment_crew = Crew(
+                agents=[alignment_agent],
+                tasks=[alignment_task],
+                memory=True,
+                long_term_memory_config=self.long_term_memory,
+                short_term_memory=self.short_term_memory,
+                entity_memory=self.entity_memory,
+                verbose=True,
+            )
+
+        alignment_crew_result = alignment_crew.kickoff(inputs={
+            "extracted_structured_information": data_from_previous_step_extracted_info,
+        })
+        logger.info(f"Alignment Crew Result: {alignment_crew_result}")
+
+        if not alignment_crew_result:
+            logger.warning("Alignment crew returned no results.")
+            return None
+
+        self.state["aligned_structured_information"] = alignment_crew_result
+        self.state["current_step"] = "aligned_structured_information"
+        return alignment_crew_result.to_dict()
+    def _should_enable_knowledge_source(self) -> bool:
+        """Check if knowledge source should be enabled"""
+
+        return (
+                os.getenv("ENABLE_KG_SOURCE", "false").lower() == "true"
+        )
+    @listen(align_structured_information)
+    async def judge_alignment(self, data_from_previous_step_align_structured_info):
+        if not data_from_previous_step_align_structured_info:
+            logger.warning("No aligned structured information extracted. Skipping judgement.")
+            return None
+
+        logger.info("Starting judgement aligned info.")
+        judge_agent, judge_task = self.initialize_judge(self.agentconfig, self.taskconfig)
+        if not judge_agent or not judge_task:
+            logger.error("Judge agent or task not initialized.")
+            return None
+
+        prev_data = data_from_previous_step_align_structured_info
+
+        if self._should_enable_knowledge_source():
+            custom_source = OntologyKnowledgeTool(
+            prev_data,
+            self.knowledgeconfig["search_key"]
+            )
+            logger.debug("#" * 100)
+            logger.debug("Knowledge source result")
+            logger.debug("-" * 100)
+            logger.debug(custom_source)
+            logger.debug("#" * 100)
+            ksrc = StringKnowledgeSource(
+                content=custom_source
+            )
+
+            judge_crew = Crew(
+                agents=[judge_agent],
+                tasks=[judge_task],
+                memory=True,
+                knowledge_sources=[ksrc],
+                long_term_memory_config=self.long_term_memory,
+                short_term_memory=self.short_term_memory,
+                entity_memory=self.entity_memory,
+                verbose=True,
+            )
+        else:
+            judge_crew = Crew(
+                agents=[judge_agent],
+                tasks=[judge_task],
+                memory=True,
+                long_term_memory_config=self.long_term_memory,
+                short_term_memory=self.short_term_memory,
+                entity_memory=self.entity_memory,
+                verbose=True,
+            )
+
+        judge_crew_result = judge_crew.kickoff(inputs={
+            "aligned_structured_information": prev_data,
+        })
+        logger.info(f"Alignment Crew Result: {judge_crew_result}")
+
+        if not judge_crew_result:
+            logger.warning("Alignment crew returned no results.")
+            return None
+
+        self.state["judge_information"] = judge_crew_result
+        self.state["current_step"] = "judge"
+        return judge_crew_result.to_dict()
+
 
 
 def kickoff(
@@ -344,7 +341,6 @@ def kickoff(
             agent_config=agentconfig,
             task_config=taskconfig,
             embedder_config=embedderconfig,
-            flow_config=flowconfig,
             knowledge_config=knowledgeconfig,
             source_text=processed_string,
         )
