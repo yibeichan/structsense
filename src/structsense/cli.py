@@ -49,8 +49,22 @@ def cli(ctx):
     required=True,
     help=("The source—whether a file (text or PDF), a folder, or a text string."),
 )
+@click.option(
+    "--humaninloop",
+    required=False,
+    help=("Option to indicate whether to enable human in the loop, default True"),
+)
+@click.option(
+    "--agent_feedback_config",
+    required=False,
+    help=("Option provide the configuration that defines whether to enable human loop for the agents, e.g., extractor agent."
+          "By default, human loop for other agents is disabled except for HumanFeedbackAgent."
+          "Note: The option humaninloop should be set to True for this to work."),
+)
+
 def extract(
-    agentconfig, taskconfig, embedderconfig, knowledgeconfig, source
+    agentconfig, taskconfig, embedderconfig, knowledgeconfig, source,
+        humaninloop, agent_feedback_config
 ):
     """Extract the terms along with sentence."""
     logger.info(
@@ -65,6 +79,9 @@ def extract(
         embedderconfig=embedderconfig,
         knowledgeconfig=knowledgeconfig,
         input_source=source,
+        enable_human_feedback=humaninloop,
+        agent_feedback_config=agent_feedback_config
+
     )
 
     click.echo("*"*100)
