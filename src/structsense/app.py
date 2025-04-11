@@ -4,13 +4,13 @@ import sys
 import tracemalloc
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union, Any
+from typing import Dict, Optional, Tuple, Union, Any, Callable, List
 
 # Filter warnings at the beginning
 import warnings
 
 warnings.filterwarnings("ignore")
-
+import json
 from crewai import Crew
 from crewai.flow.flow import Flow, listen, start
 from crewai.knowledge.source.string_knowledge_source import StringKnowledgeSource
@@ -18,7 +18,7 @@ from crewai.memory import EntityMemory, LongTermMemory, ShortTermMemory
 from crewai.memory.storage.ltm_sqlite_storage import LTMSQLiteStorage
 from crewai.memory.storage.rag_storage import RAGStorage
 from dotenv import load_dotenv
-
+from utils.human_in_loop_handler import HumanInTheLoop, ProgrammaticFeedbackHandler, HumanInterventionRequired
 from utils.types import ExtractedTermsDynamic, AlignedTermsDynamic, JudgedTermsDynamic
 from crew.dynamic_agent import DynamicAgent
 from crew.dynamic_agent_task import DynamicAgentTask
@@ -48,6 +48,7 @@ class StructSenseFlow(Flow):
 
     This flow processes text data to extract structured information, aligns it with
     external knowledge sources (if enabled), and provides judgment about the alignment.
+    Includes human-in-the-loop capabilities for critical review points.
     """
 
     def __init__(
@@ -56,7 +57,9 @@ class StructSenseFlow(Flow):
             task_config: str,
             embedder_config: str,
             source_text: str,
-            knowledge_config: Optional[str] = None
+            knowledge_config: Optional[str] = None,
+            enable_human_feedback: bool = False,
+            agent_feedback_config: Dict[str, bool] = None
     ):
         """
         Initialize the StructSenseFlow.
@@ -67,11 +70,19 @@ class StructSenseFlow(Flow):
             embedder_config: Path to embedder configuration or configuration dictionary
             source_text: The source text to process
             knowledge_config: Optional path to knowledge configuration or configuration dictionary
+            enable_human_feedback: Whether to enable human-in-the-loop functionality globally
+            agent_feedback_config: Optional dictionary mapping agent names to feedback enabled status
         """
         super().__init__()
 
         logger.info(f"Initializing StructSenseFlow")
         self.source_text = source_text
+
+        # Initialize human-in-the-loop component
+        self.human = HumanInTheLoop(
+            enable_human_feedback=enable_human_feedback,
+            agent_feedback_config=agent_feedback_config
+        )
 
         # Load configurations
         try:
@@ -224,10 +235,8 @@ class StructSenseFlow(Flow):
                 self.knowledge_config["search_key"]
             )
 
-            logger.debug("*"*100)
             logger.debug("Knowledge source result:")
             logger.debug(custom_source)
-            logger.debug("*"*100)
 
             ksrc = StringKnowledgeSource(content=custom_source)
             crew_config["knowledge_sources"] = [ksrc]
@@ -255,9 +264,19 @@ class StructSenseFlow(Flow):
             logger.error("Extractor initialization failed")
             return None
 
+        agent_name = "extractor_agent"
+
         # Create and run the extractor crew
         inputs = {"literature": self.source_text}
         extractor_crew = self._create_crew_with_knowledge(extractor_agent, extractor_task)
+
+        # Provide observation before extraction
+        self.human.provide_observation(
+            message="Starting extraction process with the following input:",
+            data=f"Text length: {len(self.source_text)} characters",
+            agent_name=agent_name
+        )
+
         extractor_result = extractor_crew.kickoff(inputs=inputs)
 
         if not extractor_result:
@@ -269,11 +288,111 @@ class StructSenseFlow(Flow):
         result_dict = extractor_result.to_dict()
         logger.info(f"Extraction complete with {len(result_dict.get('terms', []))} terms")
 
+        # Request human feedback on extraction results
+        result_dict = self.human.request_feedback(
+            data=result_dict,
+            step_name="extract_structured_information",
+            agent_name=agent_name
+        )
+
         return result_dict
 
     @listen(extracted_structured_information)
     async def align_structured_information(self, extracted_info):
-        """Align extracted structured information with knowledge sources."""
+        """Performs the alignment task.
+
+        This function listens to the result produced by the `extracted_structured_information` function,
+        captures the output (stored in `extracted_info`), and then executes the alignment agent to carry out
+        the necessary alignment operations.
+
+        :param extracted_info: Data output from the extractor agent.
+        :return aligned_info: Data output from the alignment agent that judge agent listens to
+
+        Example:
+        Input, i.e., extracted_info
+
+        {
+               "extracted_terms": {
+                    "1": [
+                        {
+                            "entity": "APOE",
+                            "label": "GENE",
+                            "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+                            "start": 26,
+                            "end": 30,
+                            "paper_location": "literature",
+                            "paper_title": null,
+                            "doi": null
+                        },
+                        {
+                            "entity": "astrocytes",
+                            "label": "CELL_TYPE",
+                            "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+                            "start": 93,
+                            "end": 103,
+                            "paper_location": "literature",
+                            "paper_title": null,
+                            "doi": null
+                        },
+                        {
+                            "entity": "microglia",
+                            "label": "CELL_TYPE",
+                            "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+                            "start": 108,
+                            "end": 117,
+                            "paper_location": "literature",
+                            "paper_title": null,
+                            "doi": null
+                        }
+                    ]
+                }
+        }
+
+        Output, i.e., aligned_info: It adds the new information such as "ontology_id" and "ontology_label"
+        {
+              "aligned_structured_information": {
+                "1": [
+                  {
+                    "entity": "APOE",
+                    "label": "GENE",
+                    "ontology_id": "HGNC:613",
+                    "ontology_label": "APOE",
+                    "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+                    "start": 26,
+                    "end": 30,
+                    "paper_location": "literature",
+                    "paper_title": null,
+                    "doi": null
+                  },
+                  {
+                    "entity": "astrocytes",
+                    "label": "CELL_TYPE",
+                    "ontology_id": "CL:0000127",
+                    "ontology_label": "Astrocyte",
+                    "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+                    "start": 93,
+                    "end": 103,
+                    "paper_location": "literature",
+                    "paper_title": null,
+                    "doi": null
+                  },
+                  {
+                    "entity": "microglia",
+                    "label": "CELL_TYPE",
+                    "ontology_id": "CL:0000129",
+                    "ontology_label": "Microglial Cell",
+                    "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+                    "start": 108,
+                    "end": 117,
+                    "paper_location": "literature",
+                    "paper_title": null,
+                    "doi": null
+                  }
+                ]
+              }
+        }
+
+        """
         if not extracted_info:
             logger.warning("No structured information extracted. Skipping alignment.")
             return None
@@ -291,11 +410,32 @@ class StructSenseFlow(Flow):
             logger.error("Alignment initialization failed")
             return None
 
+        agent_name = "alignment_agent"
+
         # Create and run the alignment crew
         alignment_crew = self._create_crew_with_knowledge(
             alignment_agent,
             alignment_task,
             extracted_info
+        )
+
+        # Note: this is different from the human feedback, i.e., request_feedback function that is something being
+        # called below. The request_feedback option allows agent to get feedback on its output while providing an option
+        # even to edit the agent's output by the user such that it will be taken into account. The request_approval
+        # steps is something that tells whether or not to proceed further in the execution i.e., performing its task.
+        # # Request human approval before alignment
+        # if not self.human.request_approval(
+        #         message="Proceed with aligning the extracted information?",
+        #         details=f"Extracted terms: {len(extracted_info.get('terms', []))}",
+        #         agent_name=agent_name
+        # ):
+        #     raise HumanInterventionRequired(f"Alignment aborted by human for agent {agent_name}")
+
+        # Provide observation before alignment
+        self.human.provide_observation(
+            message="Starting alignment process with the following extracted information:",
+            data=f"Number of terms: {len(extracted_info.get('terms', []))}",
+            agent_name=agent_name
         )
 
         alignment_result = alignment_crew.kickoff(inputs={
@@ -312,11 +452,118 @@ class StructSenseFlow(Flow):
         result_dict = alignment_result.to_dict()
         logger.info(f"Alignment complete with {len(result_dict.get('aligned_terms', []))} aligned terms")
 
+        # Request human feedback on alignment results
+        # Note: this is different from the human feedback, i.e., request_feedback function that is something being
+        # called below. The request_feedback option allows agent to get feedback on its output while providing an option
+        # even to edit the agent's output by the user such that it will be taken into account. The request_approval
+        # steps is something that tells whether or not to proceed further in the execution i.e., performing its task.
+        result_dict = self.human.request_feedback(
+            data=result_dict,
+            step_name="align_structured_information",
+            agent_name=agent_name
+        )
+
         return result_dict
 
     @listen(align_structured_information)
     async def judge_alignment(self, aligned_info):
-        """Judge the quality of the alignment between extracted and reference terms."""
+        """Judge the quality of the alignment between extracted and reference terms, i.e., the output of the alignment
+        agent and assigns the judgement_score based on the quality.
+
+        Example:
+        Input, i.e., aligned_info, from the alignment agent:
+        {
+              "aligned_structured_information": {
+                "1": [
+                  {
+                    "entity": "APOE",
+                    "label": "GENE",
+                    "ontology_id": "HGNC:613",
+                    "ontology_label": "APOE",
+                    "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+                    "start": 26,
+                    "end": 30,
+                    "paper_location": "literature",
+                    "paper_title": null,
+                    "doi": null
+                  },
+                  {
+                    "entity": "astrocytes",
+                    "label": "CELL_TYPE",
+                    "ontology_id": "CL:0000127",
+                    "ontology_label": "Astrocyte",
+                    "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+                    "start": 93,
+                    "end": 103,
+                    "paper_location": "literature",
+                    "paper_title": null,
+                    "doi": null
+                  },
+                  {
+                    "entity": "microglia",
+                    "label": "CELL_TYPE",
+                    "ontology_id": "CL:0000129",
+                    "ontology_label": "Microglial Cell",
+                    "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+                    "start": 108,
+                    "end": 117,
+                    "paper_location": "literature",
+                    "paper_title": null,
+                    "doi": null
+                  }
+                ]
+              }
+        }
+
+        Output in json format:
+        {
+          "judged_structured_information": {
+            "1": [
+              {
+                "entity": "APOE",
+                "label": "GENE",
+                "ontology_id": "HGNC:613",
+                "ontology_label": "APOE",
+                "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+                "start": 26,
+                "end": 30,
+                "judge_score": 1.0, #this has been added by the judge agent.
+                "paper_location": "literature",
+                "paper_title": null,
+                "doi": null
+              },
+              {
+                "entity": "astrocytes",
+                "label": "CELL_TYPE",
+                "ontology_id": "CL:0000127",
+                "ontology_label": "Astrocyte",
+                "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+                "start": 93,
+                "end": 103,
+                "judge_score": 1.0,
+                "paper_location": "literature",
+                "paper_title": null,
+                "doi": null
+              },
+              {
+                "entity": "microglia",
+                "label": "CELL_TYPE",
+                "ontology_id": "CL:0000129",
+                "ontology_label": "Microglial Cell",
+                "sentence": "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function.",
+                "start": 108,
+                "end": 117,
+                "judge_score": 1.0,
+                "paper_location": "literature",
+                "paper_title": null,
+                "doi": null
+              }
+            ]
+          }
+        }
+
+
+        """
         if not aligned_info:
             logger.warning("No aligned information available. Skipping judgment.")
             return None
@@ -334,11 +581,32 @@ class StructSenseFlow(Flow):
             logger.error("Judge initialization failed")
             return None
 
+        agent_name = "judge_agent"
+
         # Create and run the judge crew
         judge_crew = self._create_crew_with_knowledge(
             judge_agent,
             judge_task,
             aligned_info
+        )
+
+        # Request human approval before judgment
+        # Note: this is different from the human feedback, i.e., request_feedback function that is something being
+        # called below. The request_feedback option allows agent to get feedback on its output while providing an option
+        # even to edit the agent's output by the user such that it will be taken into account. The request_approval
+        # steps is something that tells whether or not to proceed further in the execution i.e., performing its task.
+        if not self.human.request_approval(
+                message="Proceed with judging the aligned information?",
+                details=f"Aligned terms: {len(aligned_info.get('aligned_terms', []))}",
+                agent_name=agent_name
+        ):
+            raise HumanInterventionRequired(f"Judgment aborted by human for agent {agent_name}")
+
+        # Provide observation before judgment
+        self.human.provide_observation(
+            message="Starting judgment process with the following aligned information:",
+            data=f"Number of aligned terms: {len(aligned_info.get('aligned_terms', []))}",
+            agent_name=agent_name
         )
 
         judge_result = judge_crew.kickoff(inputs={
@@ -355,6 +623,30 @@ class StructSenseFlow(Flow):
         result_dict = judge_result.to_dict()
         logger.info(f"Judgment complete with {len(result_dict.get('judged_terms', []))} judged terms")
 
+        # Request human feedback on judgment results
+        # Note: this is different from the human feedback, i.e., request_feedback function that is something being
+        # called below. The request_feedback option allows agent to get feedback on its output while providing an option
+        # even to edit the agent's output by the user such that it will be taken into account. The request_approval
+        # steps is something that tells whether or not to proceed further in the execution i.e., performing its task.
+        result_dict = self.human.request_feedback(
+            data=result_dict,
+            step_name="judge_alignment",
+            agent_name=agent_name
+        )
+
+        # Final human approval of results
+        # Note: this is different from the human feedback, i.e., request_feedback function that is something being
+        # called below. The request_feedback option allows agent to get feedback on its output while providing an option
+        # even to edit the agent's output by the user such that it will be taken into account. The request_approval
+        # steps is something that tells whether or not to proceed further in the execution i.e., performing its task.
+        if not self.human.request_approval(
+                message="Accept final results?",
+                details=f"Final judged terms: {len(result_dict.get('judged_terms', []))}",
+                agent_name=agent_name
+        ):
+            logger.warning("Final results rejected by human")
+            # We still return the results but log the rejection
+
         return result_dict
 
 
@@ -363,8 +655,11 @@ def kickoff(
         taskconfig: Union[str, dict],
         embedderconfig: Union[str, dict],
         input_source: Union[str, dict],
-        knowledgeconfig: Optional[Union[str, dict]] = None
-) -> Dict[str, Any]:
+        knowledgeconfig: Optional[Union[str, dict]] = None,
+        enable_human_feedback: bool = True,
+        agent_feedback_config: Optional[Dict[str, bool]] = None,
+        feedback_handler: Optional[ProgrammaticFeedbackHandler] = None,
+) -> Union[Dict[str, Any], str]:
     """
     Run the StructSense flow with the given configurations.
 
@@ -372,19 +667,26 @@ def kickoff(
         agentconfig: Agent configuration file path or dict
         taskconfig: Task configuration file path or dict
         embedderconfig: Embedder configuration file path or dict
-        flowconfig: Flow configuration file path or dict (unused but kept for backward compatibility)
         input_source: Input text source file path or direct text
         knowledgeconfig: Optional knowledge configuration file path or dict
+        enable_human_feedback: Whether to enable human-in-the-loop functionality
+        agent_feedback_config: Optional dictionary mapping agent names to feedback enabled status
+        feedback_handler: Optional custom feedback handler for programmatic feedback
 
     Returns:
-        Dictionary with the final results of the flow
-
-    Raises:
-        Exception: If flow execution fails
+        Dictionary with the final results of the flow, or "feedback" if feedback is required
     """
     try:
+
         # Process input data
         processed_string = process_input_data(input_source)
+
+        enable_human_feedback = enable_human_feedback if enable_human_feedback else True #just for the safe side as sometimes it's none, we want to enable it always.
+        processed_agent_feedback_config =  load_config(agent_feedback_config, "agent_feedback_config") if agent_feedback_config else {
+                "extractor_agent": False,
+                "alignment_agent": False,
+                "judge_agent": False
+            }
 
         # Initialize and run the flow
         flow = StructSenseFlow(
@@ -393,11 +695,29 @@ def kickoff(
             embedder_config=embedderconfig,
             knowledge_config=knowledgeconfig,
             source_text=processed_string,
+            enable_human_feedback=enable_human_feedback,
+            agent_feedback_config=processed_agent_feedback_config
         )
 
-        final_response = flow.kickoff()
+        # Use custom feedback handler if provided, e.g., programmatic feedback
+        if feedback_handler:
+            flow.human = feedback_handler
+
+        result = flow.kickoff()
+
+        # Handle feedback if required
+        if result == "feedback" and feedback_handler:
+            pending_feedback = feedback_handler.get_pending_feedback()
+            if pending_feedback:
+                feedback_result = feedback_handler.provide_feedback(
+                    choice="1",  # Default to approve
+                    modified_data=None
+                )
+                feedback_handler.clear_pending_feedback()
+                return flow.continue_flow(feedback_result)
+
         logger.info(f"Flow completed successfully")
-        return final_response
+        return result
 
     except Exception as e:
         logger.error(f"Flow execution failed: {str(e)}")
