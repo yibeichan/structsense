@@ -135,7 +135,6 @@ class HumanInTheLoop:
             self.output_handler("1. Approve and continue")
             self.output_handler("2. View agent output")
             self.output_handler("3. Modify")
-            self.output_handler("4. Abort operation")
 
             choice = self.input_handler("Enter choice (1/2/3/4): ")
 
@@ -233,14 +232,6 @@ class HumanInTheLoop:
                 else:
                     self.output_handler("No modifications made. Using original data.")
                     return data
-
-            elif choice == "4":
-                logger.warning(f"Human aborted at {step_name}" + (f" for agent {agent_name}" if agent_name else ""))
-                raise HumanInterventionRequired(
-                    f"Process aborted by human at {step_name}" + (f" for agent {agent_name}" if agent_name else ""))
-            else:
-                self.output_handler("Invalid choice. Using original data.")
-                return data
 
         except Exception as e:
             if not isinstance(e, HumanInterventionRequired):
