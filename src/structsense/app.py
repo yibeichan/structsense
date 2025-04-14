@@ -1,3 +1,4 @@
+
 import logging
 import os
 import sys
@@ -683,9 +684,9 @@ def kickoff(
 
         enable_human_feedback = enable_human_feedback if enable_human_feedback else True #just for the safe side as sometimes it's none, we want to enable it always.
         processed_agent_feedback_config =  load_config(agent_feedback_config, "agent_feedback_config") if agent_feedback_config else {
-                "extractor_agent": False,
-                "alignment_agent": False,
-                "judge_agent": False
+                "extractor_agent": True,
+                "alignment_agent": True,
+                "judge_agent": True
             }
 
         # Initialize and run the flow
