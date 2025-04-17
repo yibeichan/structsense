@@ -526,6 +526,7 @@ def batch_insert_ontology_data(client, data, max_errors=1000):
     """
     try:
         # Check if the Ontology collection exists
+        ONTOLOGY_DATABASE = os.getenv("ONTOLOGY_DATABASE", "ontology_database_agentpy")
         collection = client.collections.get(ONTOLOGY_DATABASE)
         if not collection.exists():
             logger.info("Ontology collection does not exist. Creating it.")
