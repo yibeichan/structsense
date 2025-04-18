@@ -1152,3 +1152,17 @@ def process_ontology(file_path, output_file=None):
     return df
 
 
+def has_modifications(new_data, old_data):
+    if not isinstance(new_data, dict) or not isinstance(old_data, dict):
+        return new_data != old_data
+
+    # Compare all keys in both dictionaries
+    all_keys = set(new_data.keys()) | set(old_data.keys())
+    for key in all_keys:
+        if key not in new_data or key not in old_data:
+            return True
+        if has_modifications(new_data[key], old_data[key]):
+            return True
+    return False
+
+
