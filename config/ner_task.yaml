@@ -180,6 +180,12 @@ alignment_task:
         Do not overwrite user-modified terms.
         Instead, annotate in remarks that user-defined values were retained and evaluated accordingly.
     
+      failure_modes_to_fix:
+          - "Inconsistent `ontology_id`/`ontology_label` across same entity."
+          - "Missing alignment remark."
+          - "`paper_title` or `doi` inconsistent with other entries from same paper."
+          
+    
 
   expected_output: >
     output_requirements:
@@ -328,6 +334,10 @@ judge_task:
         - If user-modified fields (e.g., extracted terms) are present, do not overwrite them. Note their presence and evaluation in the remarks.
         - Ensure the final structure is schema-compliant and retains all original metadata and history.
     
+    failure_modes_to_fix:
+        - "Missing `judge_score` or `remarks` per sentence."
+        - "Inconsistent `paper_title` or `doi`." 
+        - "Non-matching array lengths across sentence, score, and remarks."
 
   expected_output: > 
     output format: json
@@ -475,11 +485,11 @@ humanfeedback_task:
     Alignment Assessment:
       Analyze {judged_structured_information_with_human_feedback} to determine whether the extracted terms and structures are correctly aligned with the intended ontology or schema.
 
-    Issue Detection & Correction:
-      If any of the following issues are found, correct them:
-      Incorrect or ambiguous labels
-      Misaligned entities or relationships
-      Improper or outdated judgment scores
+    
+    update_handling:
+          - "Preserve existing remarks."
+          - "Append new remark for each change made."
+          - "Indicate knowledge source or user evidence behind updates in remarks."
 
     Provenance-Aware Remarking:
       Update the remarks field as follows:
@@ -492,6 +502,12 @@ humanfeedback_task:
       Detect and respect these changes (e.g., altered extracted terms).
       Do not overwrite user-modified terms.
       Instead, annotate in remarks that user-defined values were retained and evaluated accordingly.
+    
+    failure_modes_to_fix:
+      - "Judge score conflicts (e.g., 1.0 score for low-quality match)."
+      - "Misaligned paper metadata across multiple entries."
+      - "Missing or conflicting ontology IDs for same entity."
+      - "Field arrays of unequal length."
 
     Constraints:
       Preserve all historical data (especially remarks).
