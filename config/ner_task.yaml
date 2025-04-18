@@ -46,63 +46,63 @@ extraction_task:
           - One entity has `doi` and `paper_title` while others do not
           - One entity has placeholder `paper_title`, like "Check for updates", while others are correct
           - One entry has a `doi` but another from the same paper has an empty string
+    output_requirements:
+                         - The output must be a **single JSON object**
+                         - The **only top-level key** must be: "extracted_terms"
+                         - Second-level keys must be **stringified integers**: "1", "2", ...
+                         - Do not nest under another key like 'extracted_terms'
+                         - The value of each second-level key must be a **list** of entity mention objects
+
+              schema_rules:
+                  top_level:
+                    type: object
+                    key: "extracted_terms"
+                    note: Do not nest under another dictionary
+
+                  second_level_keys:
+                    type: string
+                    format: stringified integers
+                    order: ascending
+                    example: ["1", "2", "3"]
+
+                  entity_entry:
+                    required_fields:
+                      - entity: string
+                      - label: string
+                      - ontology_id: string or null
+                      - ontology_label: string or null
+                      - sentence: array of strings
+                      - start: array of integers
+                      - end: array of integers 
+                      - remarks: array of strings
+                      - paper_location: array of strings
+                      - paper_title: string  # ⚠️ Not an array
+                      - doi: string
+
+                    notes:
+                      - The following fields must be arrays of the same length:
+                          - sentence
+                          - start
+                          - end 
+                          - remarks
+                          - paper_location
+                      - If ontology match is missing, set:
+                          - ontology_id: null
+                          - ontology_label: null
+                      - paper_title must be a string, even if repeated in multiple entries
+
+                  strict_schema: true
+                  disallowed:
+                    - extra top-level keys
+                    - arrays for paper_title
+                    - nested result containers like 'judged_structured_information'
+
+                remarks_instructions:
+                  - Append a remark for each entry
+                  - Preserve prior remarks if present
+                  - Mention any user edits explicitly
 
   expected_output: >
-    output_requirements:
-                     - The output must be a **single JSON object**
-                     - The **only top-level key** must be: "extracted_terms"
-                     - Second-level keys must be **stringified integers**: "1", "2", ...
-                     - Do not nest under another key like 'judged_structured_information'
-                     - The value of each second-level key must be a **list** of entity mention objects
-
-          schema_rules:
-              top_level:
-                type: object
-                key: "extracted_terms"
-                note: Do not nest under another dictionary
-
-              second_level_keys:
-                type: string
-                format: stringified integers
-                order: ascending
-                example: ["1", "2", "3"]
-
-              entity_entry:
-                required_fields:
-                  - entity: string
-                  - label: string
-                  - ontology_id: string or null
-                  - ontology_label: string or null
-                  - sentence: array of strings
-                  - start: array of integers
-                  - end: array of integers 
-                  - remarks: array of strings
-                  - paper_location: array of strings
-                  - paper_title: string  # ⚠️ Not an array
-                  - doi: string
-
-                notes:
-                  - The following fields must be arrays of the same length:
-                      - sentence
-                      - start
-                      - end 
-                      - remarks
-                      - paper_location
-                  - If ontology match is missing, set:
-                      - ontology_id: null
-                      - ontology_label: null
-                  - paper_title must be a string, even if repeated in multiple entries
-
-              strict_schema: true
-              disallowed:
-                - extra top-level keys
-                - arrays for paper_title
-                - nested result containers like 'judged_structured_information'
-
-            remarks_instructions:
-              - Append a remark for each entry
-              - Preserve prior remarks if present
-              - Mention any user edits explicitly
     output format: json
     Example output:
     "extracted_terms": {
@@ -184,66 +184,64 @@ alignment_task:
           - "Inconsistent `ontology_id`/`ontology_label` across same entity."
           - "Missing alignment remark."
           - "`paper_title` or `doi` inconsistent with other entries from same paper."
-          
     
+    output_requirements:
+                       - The output must be a **single JSON object**
+                       - The **only top-level key** must be: "aligned_ner_terms"
+                       - Second-level keys must be **stringified integers**: "1", "2", ...
+                       - Do not nest under another key like 'aligned_ner_terms'
+                       - The value of each second-level key must be a **list** of entity mention objects
+
+            schema_rules:
+                top_level:
+                  type: object
+                  key: "aligned_ner_terms"
+                  note: Do not nest under another dictionary
+
+                second_level_keys:
+                  type: string
+                  format: stringified integers
+                  order: ascending
+                  example: ["1", "2", "3"]
+
+                entity_entry:
+                  required_fields:
+                    - entity: string
+                    - label: string
+                    - ontology_id: string or null
+                    - ontology_label: string or null
+                    - sentence: array of strings
+                    - start: array of integers
+                    - end: array of integers 
+                    - remarks: array of strings
+                    - paper_location: array of strings
+                    - paper_title: string  # ⚠️ Not an array
+                    - doi: string
+
+                  notes:
+                    - The following fields must be arrays of the same length:
+                        - sentence
+                        - start
+                        - end 
+                        - remarks
+                        - paper_location
+                    - If ontology match is missing, set:
+                        - ontology_id: null
+                        - ontology_label: null
+                    - paper_title must be a string, even if repeated in multiple entries
+
+                strict_schema: true
+                disallowed:
+                  - extra top-level keys
+                  - arrays for paper_title
+                  - nested result containers like 'judged_structured_information'
+
+              remarks_instructions:
+                - Append a remark for each entry
+                - Preserve prior remarks if present
+                - Mention any user edits explicitly
 
   expected_output: >
-    output_requirements:
-                   - The output must be a **single JSON object**
-                   - The **only top-level key** must be: "aligned_ner_terms"
-                   - Second-level keys must be **stringified integers**: "1", "2", ...
-                   - Do not nest under another key like 'judged_structured_information'
-                   - The value of each second-level key must be a **list** of entity mention objects
-
-        schema_rules:
-            top_level:
-              type: object
-              key: "aligned_ner_terms"
-              note: Do not nest under another dictionary
-
-            second_level_keys:
-              type: string
-              format: stringified integers
-              order: ascending
-              example: ["1", "2", "3"]
-
-            entity_entry:
-              required_fields:
-                - entity: string
-                - label: string
-                - ontology_id: string or null
-                - ontology_label: string or null
-                - sentence: array of strings
-                - start: array of integers
-                - end: array of integers 
-                - remarks: array of strings
-                - paper_location: array of strings
-                - paper_title: string  # ⚠️ Not an array
-                - doi: string
-
-              notes:
-                - The following fields must be arrays of the same length:
-                    - sentence
-                    - start
-                    - end 
-                    - remarks
-                    - paper_location
-                - If ontology match is missing, set:
-                    - ontology_id: null
-                    - ontology_label: null
-                - paper_title must be a string, even if repeated in multiple entries
-
-            strict_schema: true
-            disallowed:
-              - extra top-level keys
-              - arrays for paper_title
-              - nested result containers like 'judged_structured_information'
-
-          remarks_instructions:
-            - Append a remark for each entry
-            - Preserve prior remarks if present
-            - Mention any user edits explicitly
- 
     output format: json
     Example output:
     "aligned_ner_terms": {
@@ -338,72 +336,71 @@ judge_task:
         - "Missing `judge_score` or `remarks` per sentence."
         - "Inconsistent `paper_title` or `doi`." 
         - "Non-matching array lengths across sentence, score, and remarks."
-
-  expected_output: > 
-    output format: json
     
     output_requirements:
-                   - The output must be a **single JSON object**
-                   - The **only top-level key** must be: "judge_ner_terms"
-                   - Second-level keys must be **stringified integers**: "1", "2", ...
-                   - Do not nest under another key like 'judged_structured_information'
-                   - The value of each second-level key must be a **list** of entity mention objects
+                       - The output must be a **single JSON object**
+                       - The **only top-level key** must be: "judge_ner_terms"
+                       - Second-level keys must be **stringified integers**: "1", "2", ...
+                       - Do not nest under another key like 'judge_ner_terms'
+                       - The value of each second-level key must be a **list** of entity mention objects
 
-        schema_rules:
-            top_level:
-              type: object
-              key: "judge_ner_terms"
-              note: Do not nest under another dictionary
+            schema_rules:
+                top_level:
+                  type: object
+                  key: "judge_ner_terms"
+                  note: Do not nest under another dictionary
 
-            second_level_keys:
-              type: string
-              format: stringified integers
-              order: ascending
-              example: ["1", "2", "3"]
+                second_level_keys:
+                  type: string
+                  format: stringified integers
+                  order: ascending
+                  example: ["1", "2", "3"]
 
-            entity_entry:
-              required_fields:
-                - entity: string
-                - label: string
-                - ontology_id: string or null
-                - ontology_label: string or null
-                - sentence: array of strings
-                - start: array of integers
-                - end: array of integers
-                - judge_score: array of floats
-                - remarks: array of strings
-                - paper_location: array of strings
-                - paper_title: string  # ⚠️ Not an array
-                - doi: string
+                entity_entry:
+                  required_fields:
+                    - entity: string
+                    - label: string
+                    - ontology_id: string or null
+                    - ontology_label: string or null
+                    - sentence: array of strings
+                    - start: array of integers
+                    - end: array of integers
+                    - judge_score: array of floats
+                    - remarks: array of strings
+                    - paper_location: array of strings
+                    - paper_title: string  # ⚠️ Not an array
+                    - doi: string
 
-              notes:
-                - The following fields must be arrays of the same length:
-                    - sentence
-                    - start
-                    - end
-                    - judge_score
-                    - remarks
-                    - paper_location
-                - If ontology match is missing, set:
-                    - ontology_id: null
-                    - ontology_label: null
-                - paper_title must be a string, even if repeated in multiple entries
+                  notes:
+                    - The following fields must be arrays of the same length:
+                        - sentence
+                        - start
+                        - end
+                        - judge_score
+                        - remarks
+                        - paper_location
+                    - If ontology match is missing, set:
+                        - ontology_id: null
+                        - ontology_label: null
+                    - paper_title must be a string, even if repeated in multiple entries
 
-            strict_schema: true
-            disallowed:
-              - extra top-level keys
-              - arrays for paper_title
-              - nested result containers like 'judged_structured_information'
+                strict_schema: true
+                disallowed:
+                  - extra top-level keys
+                  - arrays for paper_title
+                  - nested result containers like 'judged_structured_information'
 
-          remarks_instructions:
-            - Append a remark for each entry
-            - Preserve prior remarks if present
-            - Mention any user edits explicitly
+              remarks_instructions:
+                - Append a remark for each entry
+                - Preserve prior remarks if present
+                - Mention any user edits explicitly
 
-          judge_score_instructions:
-            - Assign a float score between 0 and 1 per sentence
-            - 1.0 = perfect match, 0.0 = no match, values in between = partial match
-    
+              judge_score_instructions:
+                - Assign a float score between 0 and 1 per sentence
+                - 1.0 = perfect match, 0.0 = no match, values in between = partial match
+
+  expected_output: > 
+    output format: json 
     Example output:
     "judge_ner_terms": {
                         "1": [
@@ -512,72 +509,72 @@ humanfeedback_task:
     Constraints:
       Preserve all historical data (especially remarks).
       Ensure outputs are traceable, auditable, and schema-compliant.
+    
+    output_requirements:
+                   - The output must be a **single JSON object**
+                   - The **only top-level key** must be: "judge_ner_terms"
+                   - Second-level keys must be **stringified integers**: "1", "2", ...
+                   - Do not nest under another key like 'judge_ner_terms'
+                   - The value of each second-level key must be a **list** of entity mention objects
+
+        schema_rules:
+            top_level:
+              type: object
+              key: "judge_ner_terms"
+              note: Do not nest under another dictionary
+
+            second_level_keys:
+              type: string
+              format: stringified integers
+              order: ascending
+              example: ["1", "2", "3"]
+
+            entity_entry:
+              required_fields:
+                - entity: string
+                - label: string
+                - ontology_id: string or null
+                - ontology_label: string or null
+                - sentence: array of strings
+                - start: array of integers
+                - end: array of integers
+                - judge_score: array of floats
+                - remarks: array of strings
+                - paper_location: array of strings
+                - paper_title: string  # Not an array
+                - doi: string
+
+              notes:
+                - The following fields must be arrays of the same length:
+                    - sentence
+                    - start
+                    - end
+                    - judge_score
+                    - remarks
+                    - paper_location
+                - If ontology match is missing, set:
+                    - ontology_id: null
+                    - ontology_label: null
+                - paper_title must be a string, even if repeated in multiple entries
+
+            strict_schema: true
+            disallowed:
+              - extra top-level keys
+              - arrays for paper_title
+              - nested result containers like 'judged_structured_information'
+
+          remarks_instructions:
+            - Append a remark for each entry
+            - Preserve prior remarks if present
+            - Mention any user edits explicitly
+
+          judge_score_instructions:
+            - Assign a float score between 0 and 1 per sentence
+            - 1.0 = perfect match, 0.0 = no match, values in between = partial match
+
 
   expected_output: > 
     output format: json
-    
-    output_requirements:
-               - The output must be a **single JSON object**
-               - The **only top-level key** must be: "judge_ner_terms"
-               - Second-level keys must be **stringified integers**: "1", "2", ...
-               - Do not nest under another key like 'judged_structured_information'
-               - The value of each second-level key must be a **list** of entity mention objects
-
-    schema_rules:
-        top_level:
-          type: object
-          key: "judge_ner_terms"
-          note: Do not nest under another dictionary
-
-        second_level_keys:
-          type: string
-          format: stringified integers
-          order: ascending
-          example: ["1", "2", "3"]
-
-        entity_entry:
-          required_fields:
-            - entity: string
-            - label: string
-            - ontology_id: string or null
-            - ontology_label: string or null
-            - sentence: array of strings
-            - start: array of integers
-            - end: array of integers
-            - judge_score: array of floats
-            - remarks: array of strings
-            - paper_location: array of strings
-            - paper_title: string  # ⚠️ Not an array
-            - doi: string
-
-          notes:
-            - The following fields must be arrays of the same length:
-                - sentence
-                - start
-                - end
-                - judge_score
-                - remarks
-                - paper_location
-            - If ontology match is missing, set:
-                - ontology_id: null
-                - ontology_label: null
-            - paper_title must be a string, even if repeated in multiple entries
-
-        strict_schema: true
-        disallowed:
-          - extra top-level keys
-          - arrays for paper_title
-          - nested result containers like 'judged_structured_information'
-
-      remarks_instructions:
-        - Append a remark for each entry
-        - Preserve prior remarks if present
-        - Mention any user edits explicitly
-
-      judge_score_instructions:
-        - Assign a float score between 0 and 1 per sentence
-        - 1.0 = perfect match, 0.0 = no match, values in between = partial match
-    
     Example output:
     "judge_ner_terms": {
                             "1": [
