@@ -62,18 +62,10 @@ def cli(ctx):
     "By default, human loop for other agents is disabled except for HumanFeedbackAgent."
     "Note: The option humaninloop should be set to True for this to work."),
 )
-@click.option(
-    "--run_until_step",
-    required=False,
-    help=("Optional step that allows you to run agent partially. For example you may want to run just extractor agent."
-          "Options:"
-          "extracted_structured_information: Extractor agent"
-          "align_structured_information: Run until alignment agent"
-          "judge_alignment: Run until judge agent"),
-)
+
 def extract(
         agentconfig, taskconfig, embedderconfig, knowledgeconfig, source,
-        enable_human_feedback, agent_feedback_config, run_until_step
+        enable_human_feedback, agent_feedback_config
 ):
     """Extract the terms along with sentence."""
     logger.info(
@@ -90,7 +82,6 @@ def extract(
         input_source=source,
         enable_human_feedback=enable_human_feedback,
         agent_feedback_config=agent_feedback_config,
-        run_until_step=run_until_step
 
     )
 

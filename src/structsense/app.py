@@ -18,7 +18,7 @@ from crewai.memory import EntityMemory, LongTermMemory, ShortTermMemory
 from crewai.memory.storage.ltm_sqlite_storage import LTMSQLiteStorage
 from crewai.memory.storage.rag_storage import RAGStorage
 from dotenv import load_dotenv
-from utils.human_in_loop_handler import HumanInTheLoop, ProgrammaticFeedbackHandler, HumanInterventionRequired
+from .humanloop import HumanInTheLoop, ProgrammaticFeedbackHandler
 from utils.types import ExtractedTermsDynamic, AlignedTermsDynamic, JudgedTermsDynamic
 from crew.dynamic_agent import DynamicAgent
 from crew.dynamic_agent_task import DynamicAgentTask
@@ -225,8 +225,21 @@ class StructSenseFlow(Flow):
 
         # Add knowledge sources if enabled
         if self._should_enable_knowledge_source() and data_for_knowledge_tool:
+            # Format the data for the OntologyKnowledgeTool
+            formatted_data = {}
+            if isinstance(data_for_knowledge_tool, dict):
+                for key, value in data_for_knowledge_tool.items():
+                    if isinstance(value, list):
+                        formatted_data[key] = value
+                    elif isinstance(value, dict):
+                        formatted_data[key] = [value]
+                    else:
+                        formatted_data[key] = [{"entity": str(value)}]
+            else:
+                formatted_data = {"terms": [{"entity": str(data_for_knowledge_tool)}]}
+
             custom_source = OntologyKnowledgeTool(
-                data_for_knowledge_tool,
+                formatted_data,
                 self.knowledge_config["search_key"]
             )
 
@@ -278,7 +291,7 @@ class StructSenseFlow(Flow):
         extractor_crew = self._create_crew_with_knowledge(extractor_agent, extractor_task)
 
         # Provide observation before extraction
-        if self.enable_human_feedback:
+        if self.enable_human_feedback and self.human.is_feedback_enabled_for_agent(agent_name):
             self.human.provide_observation(
                 message="Starting extraction process with the following input:",
                 data=f"Text length: {len(self.source_text)} characters",
@@ -297,7 +310,7 @@ class StructSenseFlow(Flow):
         logger.info(f"Extraction complete with {len(result_dict.get('terms', []))} terms")
 
 
-        if self.enable_human_feedback:
+        if self.enable_human_feedback and self.human.is_feedback_enabled_for_agent(agent_name):
             feedback_dict = self.human.request_feedback(
                 data=result_dict,
                 step_name="structured information extraction",
@@ -375,7 +388,10 @@ class StructSenseFlow(Flow):
         logger.info(f"Alignment complete with {len(result_dict.get('aligned_terms', []))} aligned terms")
 
         # Request human feedback on alignment results
-        if self.enable_human_feedback:
+        if self.enable_human_feedback and self.human.is_feedback_enabled_for_agent(agent_name):
+            print("#"*100)
+            print("requesting human feedback")
+            print("#" * 100)
             feedback_dict = self.human.request_feedback(
                 data=result_dict,
                 step_name="information alignment",
@@ -440,7 +456,7 @@ class StructSenseFlow(Flow):
         )
 
         # Request human approval before judgment
-        if self.enable_human_feedback:
+        if self.enable_human_feedback and self.human.is_feedback_enabled_for_agent(agent_name):
             # Provide observation before judgment
             self.human.provide_observation(
                 message="Starting judgment process with the following aligned information:",
@@ -463,7 +479,7 @@ class StructSenseFlow(Flow):
         logger.info(f"Judgment complete with {len(result_dict.get('judged_terms', []))} judged terms")
 
         # Request human feedback on judgment results
-        if self.enable_human_feedback:
+        if self.enable_human_feedback and self.human.is_feedback_enabled_for_agent(agent_name):
             feedback_dict = self.human.request_feedback(
                 data=result_dict,
                 step_name="judgment of alignment",
@@ -538,11 +554,24 @@ class StructSenseFlow(Flow):
                 logger.error("Human feedback agent initialization failed")
                 return judge_result
 
+            # Format the data for the OntologyKnowledgeTool
+            formatted_data = {}
+            if isinstance(feedback_dict, dict):
+                for key, value in feedback_dict.items():
+                    if isinstance(value, list):
+                        formatted_data[key] = value
+                    elif isinstance(value, dict):
+                        formatted_data[key] = [value]
+                    else:
+                        formatted_data[key] = [{"entity": str(value)}]
+            else:
+                formatted_data = {"terms": [{"entity": str(feedback_dict)}]}
+
             # Create and run the modification crew with modified data
             modification_crew = self._create_crew_with_knowledge(
                 humanfeedback_agent,
                 humanfeedback_task,
-                feedback_dict
+                formatted_data
             )
 
             # Process the modifications
@@ -557,16 +586,6 @@ class StructSenseFlow(Flow):
                 self._update_shared_state("feedback_terms", feedback_dict)
             else:
                 logger.warning("Modification processing returned no results")
-                return judge_result
-
-        # Finally, request approval for the final results
-        if self.enable_human_feedback:
-            if not self.human.request_approval(
-                    message="Review and approve the final results?",
-                    details=f"Final judged terms after feedback: {feedback_dict}",
-                    agent_name=agent_name
-            ):
-                logger.warning("Final results rejected by human")
                 return judge_result
 
         # Update state with final results
@@ -594,7 +613,6 @@ def kickoff(
         enable_human_feedback: bool = True,
         agent_feedback_config: Optional[Dict[str, bool]] = None,
         feedback_handler: Optional[ProgrammaticFeedbackHandler] = None,
-        run_until_step: Optional[str] = None,
 ) -> Union[Dict[str, Any], str]:
     """
     Run the StructSense flow with the given configurations.
@@ -608,7 +626,6 @@ def kickoff(
         enable_human_feedback: Whether to enable human-in-the-loop functionality
         agent_feedback_config: Optional dictionary mapping agent names to feedback enabled status
         feedback_handler: Optional custom feedback handler for programmatic feedback
-        run_until_step: Optional step to run until (e.g., "extracted_structured_information, align_structured_information, judge_alignment")
 
     Returns:
         Dictionary with the final results of the flow, or "feedback" if feedback is required
@@ -657,38 +674,12 @@ def kickoff(
         # Use custom feedback handler if provided
         if feedback_handler:
             flow.human = feedback_handler
+            # Set the feedback handler's input and output handlers to use print
+            feedback_handler.input_handler = lambda x: "3"  # Always return "3" for modify
+            feedback_handler.output_handler = print
 
-        # Run the flow until specified step
-        if run_until_step:
-            # Run extractor and alignment agents
-            result = flow.kickoff(until_step=run_until_step)
-
-            # If feedback is required, handle it programmatically
-            if result == "feedback" and feedback_handler:
-                pending_feedback = feedback_handler.get_pending_feedback()
-                if pending_feedback:
-                    # Provide feedback and continue the flow
-                    feedback_result = feedback_handler.provide_feedback(
-                        choice="1",  # Default to approve
-                        modified_data=None
-                    )
-                    feedback_handler.clear_pending_feedback()
-                    return feedback_result
-            return result
-        else:
-            # Run the complete flow
-            result = flow.kickoff()
-
-            # Handle feedback if required
-            if result == "feedback" and feedback_handler:
-                pending_feedback = feedback_handler.get_pending_feedback()
-                if pending_feedback:
-                    feedback_result = feedback_handler.provide_feedback(
-                        choice="1",  # Default to approve
-                        modified_data=None
-                    )
-                    feedback_handler.clear_pending_feedback()
-                    return flow.continue_flow(feedback_result)
+        # Run the flow
+        result = flow.kickoff()
 
         logger.info(f"Flow completed successfully")
         return result
