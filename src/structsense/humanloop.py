@@ -13,7 +13,7 @@
 # @Author  : Tek Raj Chhetri
 # @Email   : tekraj@mit.edu
 # @Web     : https://tekrajchhetri.com/
-# @File    : human_in_loop_handler.py
+# @File    : humanloop.py
 # @Software: PyCharm
 
 from typing import Dict, Optional, Tuple, Union, Any, Callable, List
@@ -135,6 +135,7 @@ class HumanInTheLoop:
             self.output_handler("1. Approve and continue")
             self.output_handler("2. View agent output")
             self.output_handler("3. Modify")
+            self.output_handler("4. Abort")
 
             choice = self.input_handler("Enter choice (1/2/3/4): ")
 
@@ -349,4 +350,183 @@ class HumanInTheLoop:
 
 
 class ProgrammaticFeedbackHandler:
-    pass
+    """
+    A custom handler for programmatic human feedback.
+    This allows you to control the feedback process programmatically.
+    """
+
+    def __init__(self, feedback_responses=None):
+        """
+        Initialize the custom feedback handler.
+
+        Args:
+            feedback_responses: Dictionary mapping step names to feedback responses
+                              Example: {
+                                  "structured information extraction": {
+                                      "choice": "1",  # Approve
+                                      "modified_data": None
+                                  },
+                                  "information alignment": {
+                                      "choice": "3",  # Modify
+                                      "modified_data": {"terms": [...]}
+                                  }
+                              }
+        """
+        self.feedback_responses = feedback_responses or {}
+        self.current_step = None
+        self.pending_feedback = None
+        self.feedback_result = None
+        self.human_feedback_processed = False
+        self.agent_feedback_config = {
+            "extractor_agent": False,
+            "alignment_agent": False,
+            "judge_agent": False,
+            "humanfeedback_agent": True
+        }
+
+    def is_feedback_enabled_for_agent(self, agent_name: str) -> bool:
+        """
+        Check if feedback is enabled for a specific agent.
+
+        Args:
+            agent_name: Name of the agent to check
+
+        Returns:
+            Boolean indicating if feedback is enabled for this agent
+        """
+        return self.agent_feedback_config.get(agent_name, False)
+
+    def input(self, prompt: str) -> str:
+        """Handle input requests."""
+        # For programmatic feedback, we don't need user input
+        return "3"  # Always return "3" for modify
+
+    def output(self, message: str) -> None:
+        """Handle output messages."""
+        print(message)
+
+    def set_current_step(self, step_name: str) -> None:
+        """Set the current step for feedback handling."""
+        self.current_step = step_name
+        # Reset human feedback flag when moving to a new step
+        if step_name != "human_feedback_processing":
+            self.human_feedback_processed = False
+
+    def request_feedback(self, data: Dict, step_name: str, agent_name: Optional[str] = None) -> Dict:
+        """
+        Request human feedback on data at a particular step.
+
+        Args:
+            data: The data to review
+            step_name: The name of the current step
+            agent_name: Optional name of the agent requesting feedback
+
+        Returns:
+            The original or modified data based on human feedback
+        """
+        print(f"\n{'='*50}")
+        print(f"Requesting feedback for step: {step_name}")
+        print(f"Agent: {agent_name}")
+        print(f"Data type: {type(data)}")
+        print(f"Data: {data}")
+        print(f"{'='*50}\n")
+
+        self.current_step = step_name
+        self.pending_feedback = {
+            "data": data,
+            "step_name": step_name,
+            "agent_name": agent_name
+        }
+
+        # Return "feedback" to trigger the feedback loop
+        return "feedback"
+
+    def provide_feedback(self, choice: str, modified_data: Optional[Dict] = None) -> Dict:
+        """
+        Provide feedback for the pending request.
+
+        Args:
+            choice: The feedback choice ("1" for approve, "3" for modify, etc.)
+            modified_data: Optional modified data if choice is "3"
+
+        Returns:
+            The processed data based on the feedback
+        """
+        if not self.pending_feedback:
+            raise ValueError("No pending feedback request")
+
+        data = self.pending_feedback["data"]
+        step_name = self.pending_feedback["step_name"]
+        agent_name = self.pending_feedback["agent_name"]
+
+        if step_name == "human_feedback_processing" or agent_name == "humanfeedback_agent":
+            self.human_feedback_processed = True
+
+        if choice == "1":  # Approve
+            print(f"Human approved {step_name} data" + (f" for agent {agent_name}" if agent_name else ""))
+            return data
+        elif choice == "3":  # Modify
+            if modified_data is None:
+                raise ValueError("Modified data required for modification choice")
+            try:
+                print(f"Human modified {step_name} data" + (f" for agent {agent_name}" if agent_name else ""))
+                print("%"*100)
+                print(modified_data)
+                print("%"*100)
+                return modified_data
+            except json.JSONDecodeError as e:
+                print(f"Error parsing modified data: {e}")
+                raise ValueError("Invalid JSON format for modified data")
+        else:
+            print(f"Invalid choice: {choice}")
+            return data
+
+    def get_pending_feedback(self) -> Optional[Dict]:
+        """Get the current pending feedback request."""
+        return self.pending_feedback
+
+    def clear_pending_feedback(self) -> None:
+        """Clear the pending feedback request."""
+        self.pending_feedback = None
+
+    def provide_observation(self, message: str, data: Optional[Any] = None, agent_name: Optional[str] = None) -> None:
+        """
+        Provide an observation to the human without requiring feedback.
+
+        Args:
+            message: The observation message
+            data: Optional data to display with the observation
+            agent_name: Optional name of the agent providing the observation
+        """
+        # For programmatic feedback, we just print the observation
+        agent_info = f" (Agent: {agent_name})" if agent_name else ""
+        print(f"\n{'=' * 50}\nOBSERVATION{agent_info}\n{'=' * 50}")
+        print(message)
+
+        if data:
+            print("\nAdditional data:")
+            print(data)
+
+    def request_approval(self, message: str, details: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
+        """
+        Request human approval with a yes/no question.
+
+        Args:
+            message: Message explaining what needs approval
+            details: Optional details to show
+            agent_name: Optional name of the agent requesting approval
+
+        Returns:
+            Boolean indicating if approved
+        """
+        # For programmatic feedback, we just print the approval request
+        agent_info = f" (Agent: {agent_name})" if agent_name else ""
+        print(f"\n{'=' * 80}\nAPPROVAL REQUIRED{agent_info}\n{'=' * 80}")
+        print(message)
+
+        if details:
+            print(f"\nDetails:\n{details}")
+
+        # For programmatic feedback, we always approve
+        print("Auto-approving request")
+        return True
