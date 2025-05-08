@@ -356,6 +356,13 @@ In order to run `structsense` you need 4 YAML configuration files.
     - entity
     - label
   ```
+- Fifth is the human in the loop config (optional).
+  ```yaml
+    extractor_agent: false
+    alignment_agent: false
+    judge_agent: false
+    humanfeedback_agent: true
+  ```
 
 ## 📦 Installation
 Install this package via :
@@ -379,38 +386,41 @@ You can run `StructSense` using the CLI tool `structsense-cli`. Below are a few 
 #### 📄 1. Extract from a PDF file (with knowledge source)
 
 ```bash
-structsense-cli extract \
-  --agentconfig config/your_agent.yaml \
-  --taskconfig config/your_agent_task.yaml \
+structsense-cli extract \ 
+  --agentconfig config/ner_agent.yaml \
+  --taskconfig config/ner_task.yaml \
   --embedderconfig config/embedding.yaml \
-  --flowconfig config/agent_processing_flow.yaml \
   --knowledgeconfig config/search_ontology_knowledge.yaml \
-  --source someliterature.pdf
+  --enable_human_feedback true \
+  --agent_feedback_config config/human_in_loop.yaml \
+  --source somefile.pdf 
 ```
 #### 💬 2. Extract from raw text (with knowledge source)
 
 ```shell
 structsense-cli extract \
-  --agentconfig config/your_agent.yaml \
-  --taskconfig config/your_agent_task.yaml \
+  --agentconfig config/ner_agent.yaml \
+  --taskconfig config/ner_task.yaml \
   --embedderconfig config/embedding.yaml \
-  --flowconfig config/agent_processing_flow.yaml \
   --knowledgeconfig config/search_ontology_knowledge.yaml \
+  --enable_human_feedback true \
+  --agent_feedback_config config/human_in_loop.yaml \
   --source "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function."
 ```
 
-#### ⚡ 3. Extract from raw text (minimal setup without knowledge source)
+#### ⚡ 3. Extract from raw text without human loop
 
 ```shell
 structsense-cli extract \
-  --agentconfig config/your_agent.yaml \
-  --taskconfig config/your_agent_task.yaml \
+  --agentconfig config/ner_agent.yaml \
+  --taskconfig config/ner_task.yaml \
   --embedderconfig config/embedding.yaml \
-  --flowconfig config/flow_ner.yaml \
+  --knowledgeconfig config/search_ontology_knowledge.yaml \
+  --enable_human_feedback false \ 
   --source "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function."
 ```
 
 ## In progress
 - [X] [`More examples (e.g., using ollama)`](example/ner_example_ollama)
 - [ ] Validations (e.g., benchmarking)
-- [ ] Human feedback component.
+- [X] Human feedback component.
