@@ -12,6 +12,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 example/.structsense_env
+example/api
 # C extensions
 *.so
 .chainlit/
