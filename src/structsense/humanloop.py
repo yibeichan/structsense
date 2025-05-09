@@ -492,6 +492,7 @@ class ProgrammaticFeedbackHandler:
 
         if choice == "1":  # Approve
             print(f"Human approved {step_name} data" + (f" for agent {agent_name}" if agent_name else ""))
+            self.clear_pending_feedback()
             return data
         elif choice == "3":  # Modify
             if modified_data is None:
@@ -501,12 +502,14 @@ class ProgrammaticFeedbackHandler:
                 print("%"*100)
                 print(modified_data)
                 print("%"*100)
+                self.clear_pending_feedback()
                 return modified_data
             except json.JSONDecodeError as e:
                 print(f"Error parsing modified data: {e}")
                 raise ValueError("Invalid JSON format for modified data")
         else:
             print(f"Invalid choice: {choice}")
+            self.clear_pending_feedback()
             return data
 
     def get_pending_feedback(self) -> Optional[Dict[str, Any]]:

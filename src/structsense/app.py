@@ -681,6 +681,14 @@ def kickoff(
         # Run the flow
         result = flow.kickoff()
 
+        # If feedback is required, return the feedback request
+        if result == "feedback":
+            if feedback_handler and feedback_handler.has_pending_feedback():
+                return "feedback"
+            else:
+                logger.warning("No pending feedback found but result was 'feedback'")
+                return None
+
         logger.info(f"Flow completed successfully")
         return result
 
