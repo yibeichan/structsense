@@ -383,6 +383,7 @@ class ProgrammaticFeedbackHandler:
             "judge_agent": False,
             "humanfeedback_agent": True
         }
+        self.valid_choices = {"1", "2", "3", "4"}
 
     def is_feedback_enabled_for_agent(self, agent_name: str) -> bool:
         """
@@ -412,7 +413,29 @@ class ProgrammaticFeedbackHandler:
         if step_name != "human_feedback_processing":
             self.human_feedback_processed = False
 
-    def request_feedback(self, data: Dict, step_name: str, agent_name: Optional[str] = None) -> Dict:
+    def has_pending_feedback(self) -> bool:
+        """
+        Check if there is any pending feedback to process.
+
+        Returns:
+            Boolean indicating if there is pending feedback
+        """
+        return self.pending_feedback is not None
+
+    def validate_feedback_choice(self, choice: str) -> None:
+        """
+        Validate the feedback choice.
+
+        Args:
+            choice: The feedback choice to validate
+
+        Raises:
+            ValueError: If the choice is invalid
+        """
+        if choice not in self.valid_choices:
+            raise ValueError(f"Invalid choice: {choice}. Must be one of: {', '.join(self.valid_choices)}")
+
+    def request_feedback(self, data: Dict[str, Any], step_name: str, agent_name: Optional[str] = None) -> Union[Dict[str, Any], str]:
         """
         Request human feedback on data at a particular step.
 
@@ -422,7 +445,7 @@ class ProgrammaticFeedbackHandler:
             agent_name: Optional name of the agent requesting feedback
 
         Returns:
-            The original or modified data based on human feedback
+            The original or modified data based on human feedback, or "feedback" to trigger the feedback loop
         """
         print(f"\n{'='*50}")
         print(f"Requesting feedback for step: {step_name}")
@@ -441,7 +464,7 @@ class ProgrammaticFeedbackHandler:
         # Return "feedback" to trigger the feedback loop
         return "feedback"
 
-    def provide_feedback(self, choice: str, modified_data: Optional[Dict] = None) -> Dict:
+    def provide_feedback(self, choice: str, modified_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Provide feedback for the pending request.
 
@@ -451,9 +474,14 @@ class ProgrammaticFeedbackHandler:
 
         Returns:
             The processed data based on the feedback
+
+        Raises:
+            ValueError: If there is no pending feedback or if the choice is invalid
         """
         if not self.pending_feedback:
             raise ValueError("No pending feedback request")
+
+        self.validate_feedback_choice(choice)
 
         data = self.pending_feedback["data"]
         step_name = self.pending_feedback["step_name"]
@@ -481,8 +509,13 @@ class ProgrammaticFeedbackHandler:
             print(f"Invalid choice: {choice}")
             return data
 
-    def get_pending_feedback(self) -> Optional[Dict]:
-        """Get the current pending feedback request."""
+    def get_pending_feedback(self) -> Optional[Dict[str, Any]]:
+        """
+        Get the current pending feedback request.
+
+        Returns:
+            Dictionary containing the pending feedback request or None if no pending feedback
+        """
         return self.pending_feedback
 
     def clear_pending_feedback(self) -> None:
