@@ -44,8 +44,6 @@ rich = "^13.9.4"
 weave = "^0.51.39"
 mlflow = "^2.21.1"
 poetry = "^2.1.1"
-chainlit = "^2.4.400"
-langtrace-python-sdk = "^3.8.12"
 
 [tool.poetry.group.dev]
 optional = true
