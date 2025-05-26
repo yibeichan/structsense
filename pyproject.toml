@@ -29,6 +29,9 @@ packages = [
   { include = "crew", from = "src" },
   { include = "utils", from = "src" }
 ]
+include = [
+    "src/structsense/default_config_ner/*.yaml"
+]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"

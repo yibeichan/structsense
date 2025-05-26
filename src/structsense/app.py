@@ -25,6 +25,9 @@ from crew.dynamic_agent_task import DynamicAgentTask
 from utils.ontology_knowedge_tool import OntologyKnowledgeTool
 from utils.utils import load_config, process_input_data, has_modifications
 
+# Add new import for hardcoded configs
+from .default_config_sie_ner import get_agent_config, NER_TASK_CONFIG, EMBEDDER_CONFIG, HUMAN_IN_LOOP_CONFIG, SEARCH_ONTOLOGY_KNOWLEDGE_CONFIG
+
 # Start memory tracking
 tracemalloc.start()
 load_dotenv()
@@ -56,7 +59,8 @@ class StructSenseFlow(Flow):
             source_text: str,
             knowledge_config: Optional[str] = None,
             enable_human_feedback: bool = False,
-            agent_feedback_config: Dict[str, bool] = None
+            agent_feedback_config: Dict[str, bool] = None,
+            env_file: Optional[str] = None
     ):
         super().__init__()
         logger.info(f"Initializing StructSenseFlow")
@@ -613,6 +617,7 @@ def kickoff(
         enable_human_feedback: bool = True,
         agent_feedback_config: Optional[Dict[str, bool]] = None,
         feedback_handler: Optional[ProgrammaticFeedbackHandler] = None,
+        env_file: Optional[str] = None
 ) -> Union[Dict[str, Any], str]:
     """
     Run the StructSense flow with the given configurations.
@@ -626,6 +631,7 @@ def kickoff(
         enable_human_feedback: Whether to enable human-in-the-loop functionality
         agent_feedback_config: Optional dictionary mapping agent names to feedback enabled status
         feedback_handler: Optional custom feedback handler for programmatic feedback
+        env_file: Optional path to an environment file to override the default .env file
 
     Returns:
         Dictionary with the final results of the flow, or "feedback" if feedback is required
@@ -668,7 +674,8 @@ def kickoff(
             knowledge_config=knowledgeconfig,
             source_text=processed_string,
             enable_human_feedback=enable_human_feedback,
-            agent_feedback_config=agent_feedback_config_bool
+            agent_feedback_config=agent_feedback_config_bool,
+            env_file=env_file
         )
 
         # Use custom feedback handler if provided
@@ -695,4 +702,31 @@ def kickoff(
     except Exception as e:
         logger.error(f"Flow execution failed: {str(e)}")
         raise
+
+def replace_api_key(config, new_api_key):
+    """Recursively replace all api_key values in the config dict with new_api_key."""
+    if isinstance(config, dict):
+        for key, value in config.items():
+            if key == "api_key":
+                config[key] = new_api_key
+            else:
+                replace_api_key(value, new_api_key)
+    return config
+
+def ner_kickoff(api_key=None, input_source="", env_file=None):
+    """
+    Run the NER pipeline using default configurations loaded from YAML files.
+    If api_key is provided, it replaces the api_key in the agent config.
+    """
+    agent_config = get_agent_config(api_key)
+    return kickoff(
+        agentconfig=agent_config,
+        taskconfig=NER_TASK_CONFIG,
+        embedderconfig=EMBEDDER_CONFIG,
+        knowledgeconfig=SEARCH_ONTOLOGY_KNOWLEDGE_CONFIG,
+        input_source=input_source,
+        enable_human_feedback=True,
+        agent_feedback_config=HUMAN_IN_LOOP_CONFIG,
+        env_file=env_file
+    )
 
