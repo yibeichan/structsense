@@ -2,7 +2,7 @@ import os
 import yaml
 from pathlib import Path
 
-DEFAULT_CONFIG_DIR = Path(__file__).parent / "default_config"
+DEFAULT_CONFIG_DIR = Path(__file__).parent / "default_config_sie"
 
 # Utility to load YAML config
 def load_yaml_config(filename):
