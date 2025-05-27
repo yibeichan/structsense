@@ -26,7 +26,7 @@ from utils.ontology_knowedge_tool import OntologyKnowledgeTool
 from utils.utils import load_config, process_input_data, has_modifications
 
 # Add new import for hardcoded configs
-from .default_config_sie_ner import get_agent_config, NER_TASK_CONFIG, EMBEDDER_CONFIG, HUMAN_IN_LOOP_CONFIG, SEARCH_ONTOLOGY_KNOWLEDGE_CONFIG
+# from .default_config_sie_ner import get_agent_config, NER_TASK_CONFIG, EMBEDDER_CONFIG, HUMAN_IN_LOOP_CONFIG, SEARCH_ONTOLOGY_KNOWLEDGE_CONFIG
 
 # Start memory tracking
 tracemalloc.start()
@@ -130,9 +130,18 @@ class StructSenseFlow(Flow):
             memory_path = Path("crew_memory")
             memory_path.mkdir(exist_ok=True)
 
-            # Configure RAG storage options
+            # DEBUG: Print embedder_config before passing to RAGStorage
+            print("DEBUG: embedder_config for RAGStorage:", self.embedder_config)
+            # Pass the correct structure to RAGStorage
+            if isinstance(self.embedder_config, dict) and 'provider' in self.embedder_config:
+                embedder_config_for_rag = self.embedder_config
+            elif isinstance(self.embedder_config, dict) and 'embedder_config' in self.embedder_config:
+                embedder_config_for_rag = self.embedder_config['embedder_config']
+            else:
+                embedder_config_for_rag = self.embedder_config  # fallback
+
             rag_storage_config = {
-                "embedder_config": self.embedder_config.get("embedder_config"),
+                "embedder_config": embedder_config_for_rag,
                 "type": "short_term",
                 "path": str(memory_path),
             }
@@ -294,12 +303,12 @@ class StructSenseFlow(Flow):
         extractor_crew = self._create_crew_with_knowledge(extractor_agent, extractor_task)
 
         # Provide observation before extraction
-        if self.enable_human_feedback and self.human.is_feedback_enabled_for_agent(agent_name):
-            self.human.provide_observation(
-                message="Starting extraction process with the following input:",
-                data=f"Text length: {len(self.source_text)} characters",
-                agent_name=agent_name
-            )
+        # if self.enable_human_feedback and self.human.is_feedback_enabled_for_agent(agent_name):
+        #     self.human.provide_observation(
+        #         message="Starting extraction process with the following input:",
+        #         data=f"Text length: {len(self.source_text)} characters",
+        #         agent_name=agent_name
+        #     )
 
         extractor_result = extractor_crew.kickoff(inputs=inputs)
 
@@ -312,38 +321,38 @@ class StructSenseFlow(Flow):
         self._update_shared_state("extracted_terms", result_dict)
         logger.info(f"Extraction complete with {len(result_dict.get('terms', []))} terms")
 
-
-        if self.enable_human_feedback and self.human.is_feedback_enabled_for_agent(agent_name):
-            feedback_dict = self.human.request_feedback(
-                data=result_dict,
-                step_name="structured information extraction",
-                agent_name=agent_name
-            )
-
-            # Check if any modifications were made
-            if has_modifications(feedback_dict, result_dict):
-                logger.info("Processing modifications based on human feedback")
-                print("*"*100)
-                print("Data modified, running extraction crew again")
-                print("*"*100)
-                # Run the extractor crew again with modified data
-                modified_result = extractor_crew.kickoff(inputs={
-                    "literature": self.source_text,
-                    "user_feedback_data": feedback_dict,
-                    "modification_context": "Process the requrested user feedback on extracted data. Also take note of the shared_state that contains results from other agents as well. User Feedback Handling: If the input includes modifications previously made based on human/user feedback: Detect and respect these changes (e.g., altered extracted terms). Do not overwrite user-modified terms. Instead, annotate in remarks that user-defined values were retained and evaluated accordingly."
-                })
-
-                if modified_result:
-                    feedback_dict = modified_result.to_dict()
-                    self._update_shared_state("extracted_terms", feedback_dict)
-                else:
-                    logger.warning("Modification processing returned no results")
-                    return result_dict
-
-            # Update shared state with feedback results
-            if feedback_dict:
-                self._update_shared_state("extracted_terms", feedback_dict)
-                result_dict = feedback_dict
+        # disabled feedback for extractor
+        # if self.enable_human_feedback and self.human.is_feedback_enabled_for_agent(agent_name):
+        #     feedback_dict = self.human.request_feedback(
+        #         data=result_dict,
+        #         step_name="structured information extraction",
+        #         agent_name=agent_name
+        #     )
+        #
+        #     # Check if any modifications were made
+        #     if has_modifications(feedback_dict, result_dict):
+        #         logger.info("Processing modifications based on human feedback")
+        #         print("*"*100)
+        #         print("Data modified, running extraction crew again")
+        #         print("*"*100)
+        #         # Run the extractor crew again with modified data
+        #         modified_result = extractor_crew.kickoff(inputs={
+        #             "literature": self.source_text,
+        #             "user_feedback_data": feedback_dict,
+        #             "modification_context": "Process the requrested user feedback on extracted data. Also take note of the shared_state that contains results from other agents as well. User Feedback Handling: If the input includes modifications previously made based on human/user feedback: Detect and respect these changes (e.g., altered extracted terms). Do not overwrite user-modified terms. Instead, annotate in remarks that user-defined values were retained and evaluated accordingly."
+        #         })
+        #
+        #         if modified_result:
+        #             feedback_dict = modified_result.to_dict()
+        #             self._update_shared_state("extracted_terms", feedback_dict)
+        #         else:
+        #             logger.warning("Modification processing returned no results")
+        #             return result_dict
+        #
+        #     # Update shared state with feedback results
+        #     if feedback_dict:
+        #         self._update_shared_state("extracted_terms", feedback_dict)
+        #         result_dict = feedback_dict
 
         return result_dict
 
@@ -391,41 +400,42 @@ class StructSenseFlow(Flow):
         logger.info(f"Alignment complete with {len(result_dict.get('aligned_terms', []))} aligned terms")
 
         # Request human feedback on alignment results
-        if self.enable_human_feedback and self.human.is_feedback_enabled_for_agent(agent_name):
-            print("#"*100)
-            print("requesting human feedback")
-            print("#" * 100)
-            feedback_dict = self.human.request_feedback(
-                data=result_dict,
-                step_name="information alignment",
-                agent_name=agent_name
-            )
-
-            if has_modifications(feedback_dict, result_dict):
-                logger.info("Processing modifications based on human feedback")
-                print("*" * 100)
-                print("Data modified, running alignment crew again")
-                print("*" * 100)
-
-                # Run the alignment crew again with modified data
-                modified_result = alignment_crew.kickoff(inputs={
-                    "extracted_structured_information": extracted_info,
-                    "user_feedback_data": feedback_dict,
-                    "shared_state": self.shared_state,
-                    "modification_context": "Process the requested user feedback on aligned data. Also take note of the shared_state that contains results from other agents as well. User Feedback Handling: If the input includes modifications previously made based on human/user feedback: Detect and respect these changes (e.g., altered extracted terms). Do not overwrite user-modified terms. Instead, annotate in remarks that user-defined values were retained and evaluated accordingly."
-                })
-
-                if modified_result:
-                    feedback_dict = modified_result.to_dict()
-                    self._update_shared_state("aligned_terms", feedback_dict)
-                else:
-                    logger.warning("Modification processing returned no results")
-                    return result_dict
-
-            # Update shared state with feedback results
-            if feedback_dict:
-                self._update_shared_state("aligned_terms", feedback_dict)
-                result_dict = feedback_dict
+        #  # disabled feedback for alignment
+        # if self.enable_human_feedback and self.human.is_feedback_enabled_for_agent(agent_name):
+        #     print("#"*100)
+        #     print("requesting human feedback")
+        #     print("#" * 100)
+        #     feedback_dict = self.human.request_feedback(
+        #         data=result_dict,
+        #         step_name="information alignment",
+        #         agent_name=agent_name
+        #     )
+        #
+        #     if has_modifications(feedback_dict, result_dict):
+        #         logger.info("Processing modifications based on human feedback")
+        #         print("*" * 100)
+        #         print("Data modified, running alignment crew again")
+        #         print("*" * 100)
+        #
+        #         # Run the alignment crew again with modified data
+        #         modified_result = alignment_crew.kickoff(inputs={
+        #             "extracted_structured_information": extracted_info,
+        #             "user_feedback_data": feedback_dict,
+        #             "shared_state": self.shared_state,
+        #             "modification_context": "Process the requested user feedback on aligned data. Also take note of the shared_state that contains results from other agents as well. User Feedback Handling: If the input includes modifications previously made based on human/user feedback: Detect and respect these changes (e.g., altered extracted terms). Do not overwrite user-modified terms. Instead, annotate in remarks that user-defined values were retained and evaluated accordingly."
+        #         })
+        #
+        #         if modified_result:
+        #             feedback_dict = modified_result.to_dict()
+        #             self._update_shared_state("aligned_terms", feedback_dict)
+        #         else:
+        #             logger.warning("Modification processing returned no results")
+        #             return result_dict
+        #
+        #     # Update shared state with feedback results
+        #     if feedback_dict:
+        #         self._update_shared_state("aligned_terms", feedback_dict)
+        #         result_dict = feedback_dict
 
         return result_dict
 
@@ -459,13 +469,13 @@ class StructSenseFlow(Flow):
         )
 
         # Request human approval before judgment
-        if self.enable_human_feedback and self.human.is_feedback_enabled_for_agent(agent_name):
-            # Provide observation before judgment
-            self.human.provide_observation(
-                message="Starting judgment process with the following aligned information:",
-                data=f"Number of aligned terms: {len(aligned_info.get('aligned_terms', []))}",
-                agent_name=agent_name
-            )
+        # if self.enable_human_feedback and self.human.is_feedback_enabled_for_agent(agent_name):
+        #     # Provide observation before judgment
+        #     self.human.provide_observation(
+        #         message="Starting judgment process with the following aligned information:",
+        #         data=f"Number of aligned terms: {len(aligned_info.get('aligned_terms', []))}",
+        #         agent_name=agent_name
+        #     )
 
         judge_result = judge_crew.kickoff(inputs={
             "aligned_structured_information": aligned_info,
@@ -482,39 +492,39 @@ class StructSenseFlow(Flow):
         logger.info(f"Judgment complete with {len(result_dict.get('judged_terms', []))} judged terms")
 
         # Request human feedback on judgment results
-        if self.enable_human_feedback and self.human.is_feedback_enabled_for_agent(agent_name):
-            feedback_dict = self.human.request_feedback(
-                data=result_dict,
-                step_name="judgment of alignment",
-                agent_name=agent_name
-            )
-
-            # Check if any modifications were made
-            if has_modifications(feedback_dict, result_dict):
-                logger.info("Processing modifications based on human feedback")
-                logger.info("*" * 100)
-                logger.info("Data modified, running judgment crew again")
-                logger.info("*" * 100)
-
-                # Run the judge crew again with modified data
-                modified_result = judge_crew.kickoff(inputs={
-                    "aligned_structured_information": aligned_info,
-                    "user_feedback_data": feedback_dict,
-                    "shared_state": self.shared_state,
-                    "modification_context": "Process the requrested user feedback on judge agent output. Also take note of the shared_state that contains results from other agents as well. User Feedback Handling: If the input includes modifications previously made based on human/user feedback: Detect and respect these changes (e.g., altered extracted terms). Do not overwrite user-modified terms. Instead, annotate in remarks that user-defined values were retained and evaluated accordingly."
-                })
-
-                if modified_result:
-                    feedback_dict = modified_result.to_dict()
-                    self._update_shared_state("judged_terms", feedback_dict)
-                else:
-                    logger.warning("Modification processing returned no results")
-                    return result_dict
-
-            # Update shared state with feedback results
-            if feedback_dict:
-                self._update_shared_state("judged_terms", feedback_dict)
-                result_dict = feedback_dict
+        # if self.enable_human_feedback and self.human.is_feedback_enabled_for_agent(agent_name):
+        #     feedback_dict = self.human.request_feedback(
+        #         data=result_dict,
+        #         step_name="judgment of alignment",
+        #         agent_name=agent_name
+        #     )
+        #
+        #     # Check if any modifications were made
+        #     if has_modifications(feedback_dict, result_dict):
+        #         logger.info("Processing modifications based on human feedback")
+        #         logger.info("*" * 100)
+        #         logger.info("Data modified, running judgment crew again")
+        #         logger.info("*" * 100)
+        #
+        #         # Run the judge crew again with modified data
+        #         modified_result = judge_crew.kickoff(inputs={
+        #             "aligned_structured_information": aligned_info,
+        #             "user_feedback_data": feedback_dict,
+        #             "shared_state": self.shared_state,
+        #             "modification_context": "Process the requrested user feedback on judge agent output. Also take note of the shared_state that contains results from other agents as well. User Feedback Handling: If the input includes modifications previously made based on human/user feedback: Detect and respect these changes (e.g., altered extracted terms). Do not overwrite user-modified terms. Instead, annotate in remarks that user-defined values were retained and evaluated accordingly."
+        #         })
+        #
+        #         if modified_result:
+        #             feedback_dict = modified_result.to_dict()
+        #             self._update_shared_state("judged_terms", feedback_dict)
+        #         else:
+        #             logger.warning("Modification processing returned no results")
+        #             return result_dict
+        #
+        #     # Update shared state with feedback results
+        #     if feedback_dict:
+        #         self._update_shared_state("judged_terms", feedback_dict)
+        #         result_dict = feedback_dict
 
         return result_dict
 
@@ -721,31 +731,4 @@ def kickoff(
     except Exception as e:
         logger.error(f"Flow execution failed: {str(e)}")
         raise
-
-def replace_api_key(config, new_api_key):
-    """Recursively replace all api_key values in the config dict with new_api_key."""
-    if isinstance(config, dict):
-        for key, value in config.items():
-            if key == "api_key":
-                config[key] = new_api_key
-            else:
-                replace_api_key(value, new_api_key)
-    return config
-
-def ner_kickoff(api_key=None, input_source="", env_file=None):
-    """
-    Run the NER pipeline using default configurations loaded from YAML files.
-    If api_key is provided, it replaces the api_key in the agent config.
-    """
-    agent_config = get_agent_config(api_key)
-    return kickoff(
-        agentconfig=agent_config,
-        taskconfig=NER_TASK_CONFIG,
-        embedderconfig=EMBEDDER_CONFIG,
-        knowledgeconfig=SEARCH_ONTOLOGY_KNOWLEDGE_CONFIG,
-        input_source=input_source,
-        enable_human_feedback=True,
-        agent_feedback_config=HUMAN_IN_LOOP_CONFIG,
-        env_file=env_file
-    )
 

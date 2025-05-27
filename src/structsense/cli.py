@@ -5,9 +5,8 @@ import logging
 import click
 
 from .app import kickoff
-from .default_config_sie_ner import get_agent_config, NER_TASK_CONFIG, EMBEDDER_CONFIG, HUMAN_IN_LOOP_CONFIG, SEARCH_ONTOLOGY_KNOWLEDGE_CONFIG
-from .app import ner_kickoff
-
+from utils.utils import replace_api_key
+import yaml
 logger = logging.getLogger(__name__)
 
 
@@ -20,30 +19,16 @@ def cli(ctx):
 
 @cli.command()
 @click.option(
-    "--agentconfig",
+    "--config",
     required=True,
     type=str,
-    help=("Path to the agent configuration in YAML file format or dictionary"),
+    help="Path to the single YAML config file (ner_config.yaml)."
 )
 @click.option(
-    "--taskconfig",
-    required=True,
-    type=str,
-    help=("Path to the agent task configuration in YAML format or or dictionary"),
-)
-@click.option(
-    "--embedderconfig",
-    required=True,
-    type=str,
-    help=("Path to the embedding configuration in YAML format or or dictionary"),
-)
-@click.option(
-    "--knowledgeconfig",
+    "--api_key",
     required=False,
     type=str,
-    help=(
-            "Path to the configuration in YAML format or or dictionary that specify the search knowledge search key."
-    ),
+    help="Open router API key."
 )
 @click.option(
     "--source",
@@ -51,46 +36,36 @@ def cli(ctx):
     help=("The source—whether a file (text or PDF), a folder, or a text string."),
 )
 @click.option(
-    "--enable_human_feedback",
-    required=False,
-    help=("Option to indicate whether to enable human in the loop, default True"),
-)
-@click.option(
-    "--agent_feedback_config",
-    required=False,
-    help=(
-    "Option provide the configuration that defines whether to enable human loop for the agents, e.g., extractor agent."
-    "By default, human loop for other agents is disabled except for HumanFeedbackAgent."
-    "Note: The option humaninloop should be set to True for this to work."),
-)
-@click.option(
     "--env_file",
     required=False,
     type=str,
     help="Optional path to an environment file to override the default .env file."
 )
-def extract(
-        agentconfig, taskconfig, embedderconfig, knowledgeconfig, source,
-        enable_human_feedback, agent_feedback_config, env_file
-):
-    """Extract the terms along with sentence."""
-    logger.info(
-        f"Processing source: {source} with agent config: {agentconfig}, task config: {taskconfig}, embedderconfig: {embedderconfig}, knowledgeconfig: {knowledgeconfig}"
-    )
-    click.echo(
-        f"Processing source: {source} with agent config: {agentconfig}, task config: {taskconfig}, embedderconfig: {embedderconfig} knowledgeconfig: {knowledgeconfig}"
-    )
+def extract(config, api_key, source, env_file):
+    """Extract the terms along with sentence using a single config file."""
+
+    with open(config, 'r') as f:
+        all_config = yaml.safe_load(f)
+    agent_config = all_config.get('agent_config', {})
+    embedder_config = all_config.get('embedder_config', {})
+    if api_key:
+        if "api_key" in str(agent_config):
+            agent_config = replace_api_key(agent_config, api_key)
+        if "api_key" in str(embedder_config):
+            embedder_config = replace_api_key(embedder_config, api_key)
+    task_config = all_config.get('task_config', {})
+    knowledge_config = all_config.get('knowledge_config', {})
+    human_in_loop_config = all_config.get('human_in_loop_config', {})
     result = kickoff(
-        agentconfig=agentconfig,
-        taskconfig=taskconfig,
-        embedderconfig=embedderconfig,
-        knowledgeconfig=knowledgeconfig,
+        agentconfig=agent_config,
+        taskconfig=task_config,
+        embedderconfig=embedder_config,
+        knowledgeconfig=knowledge_config,
         input_source=source,
-        enable_human_feedback=enable_human_feedback,
-        agent_feedback_config=agent_feedback_config,
+        enable_human_feedback=True,
+        agent_feedback_config=human_in_loop_config,
         env_file=env_file
     )
-
     click.echo("*" * 100)
     click.echo("Result")
     click.echo(result)
@@ -102,7 +77,7 @@ def extract(
 )
 @click.option(
     "--api_key",
-    required=True,
+    required=False,
     type=str,
     help="Open router API key."
 )
@@ -120,13 +95,34 @@ def extract(
 )
 def sie(api_key, source, env_file):
     """
-    Run the Structured Information Extraction (SIE) pipeline using default configurations.
-
-    This command runs the SIE pipeline with hardcoded configs. 
-    If you want to run the pipeline in a customized fashion, use the 'extract' command and pass custom configuration files.
+    Run the Structured Information Extraction (SIE) pipeline using the default config file.
     """
-    logger.info("Running NER pipeline with hardcoded configurations.")
-    result = ner_kickoff(api_key=api_key, input_source=source, env_file=env_file)
+    import os
+    default_config_path = os.path.join(
+        os.path.dirname(__file__), "default_config_sie", "ner_config.yaml"
+    )
+    with open(default_config_path, 'r') as f:
+        all_config = yaml.safe_load(f)
+    agent_config = all_config.get('agent_config', {})
+    embedder_config = all_config.get('embedder_config', {})
+    if api_key:
+        if "api_key" in str(agent_config):
+            agent_config = replace_api_key(agent_config, api_key)
+        if "api_key" in str(embedder_config):
+            embedder_config = replace_api_key(embedder_config, api_key)
+    task_config = all_config.get('task_config', {})
+    knowledge_config = all_config.get('knowledge_config', {})
+    human_in_loop_config = all_config.get('human_in_loop_config', {})
+    result = kickoff(
+        agentconfig=agent_config,
+        taskconfig=task_config,
+        embedderconfig=embedder_config,
+        knowledgeconfig=knowledge_config,
+        input_source=source,
+        enable_human_feedback=True,
+        agent_feedback_config=human_in_loop_config,
+        env_file=env_file
+    )
     click.echo("*" * 100)
     click.echo("Result")
     click.echo(result)

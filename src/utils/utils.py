@@ -1166,3 +1166,14 @@ def has_modifications(new_data, old_data):
     return False
 
 
+def replace_api_key(config, new_api_key):
+    """Recursively replace all api_key values in the config dict with new_api_key."""
+    if isinstance(config, dict):
+        for key, value in config.items():
+            if key == "api_key":
+                config[key] = new_api_key
+            else:
+                replace_api_key(value, new_api_key)
+    return config
+
+
