@@ -481,6 +481,13 @@ humanfeedback_task:
 
     Objective: Evaluate and, if necessary, revise the structured output to ensure accurate alignment with the target ontology/schema.
 
+    Important: The number of extracted entities should not be less than what you received.
+    modification_context: 
+      {modification_context}
+    
+    user_feedback_text:
+      {user_feedback_text}
+    
     Instructions:
 
     Alignment Assessment:

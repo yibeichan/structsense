@@ -536,9 +536,14 @@ class StructSenseFlow(Flow):
                 step_name="human_feedback_processing",
                 agent_name=agent_name
             )
+            print(f"Debug: Feedback dictionary passed to human feedback agent: {feedback_dict}")
         else:
             #if not enabled human feedback we return the judge result as default
             feedback_dict = judge_result
+
+        # Ensure feedback_dict is a dictionary
+        if isinstance(feedback_dict, str):
+            feedback_dict = {"user_feedback_text": feedback_dict}
 
         # Check if any modifications were made
         if has_modifications(feedback_dict, judge_result):
@@ -546,6 +551,10 @@ class StructSenseFlow(Flow):
             logger.info("*" * 100)
             logger.info("Data modified, running modification crew")
             logger.info("*" * 100)
+
+            # Check for natural language text in feedback
+            if 'user_feedback_text' in feedback_dict:
+                logger.info(f"Natural language feedback: {feedback_dict['user_feedback_text']}")
 
             # Initialize human feedback components
             humanfeedback_agent, humanfeedback_task = self._initialize_agent_and_task(
@@ -579,10 +588,13 @@ class StructSenseFlow(Flow):
             )
 
             # Process the modifications
+            user_feedback_text = feedback_dict.get('user_feedback_text', '')
+
             modified_result = modification_crew.kickoff(inputs={
                 "judged_structured_information_with_human_feedback": feedback_dict,
                 "shared_state": self.shared_state,
-                "modification_context": "Process the requrested user feedback. Also take note of the shared_state that contains results from other agents as well. User Feedback Handling: If the input includes modifications previously made based on human/user feedback: Detect and respect these changes (e.g., altered extracted terms). Do not overwrite user-modified terms. Instead, annotate in remarks that user-defined values were retained and evaluated accordingly."
+                "modification_context": "Process the requrested user feedback. Also take note of the shared_state that contains results from other agents as well. User Feedback Handling: If the input includes modifications previously made based on human/user feedback: Detect and respect these changes (e.g., altered extracted terms). Do not overwrite user-modified terms. Instead, annotate in remarks that user-defined values were retained and evaluated accordingly.",
+                "user_feedback_text": user_feedback_text
             })
 
             if modified_result:

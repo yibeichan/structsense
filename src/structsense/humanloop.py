@@ -23,6 +23,7 @@ import tempfile
 import subprocess
 import os
 import platform
+import re
 
 class HumanInterventionRequired(Exception):
     """Exception raised when human intervention is required."""
@@ -33,6 +34,30 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+def parse_feedback_input(feedback_input):
+    """
+    Parse feedback input to extract both natural language text and JSON if present.
+    Returns a dict with 'user_feedback_text' and/or 'user_feedback_json'.
+    """
+    feedback_input = feedback_input.strip()
+    # Try to find JSON block in the input
+    json_match = re.search(r'({[\s\S]+})', feedback_input)
+    if json_match:
+        json_str = json_match.group(1)
+        try:
+            feedback_json = json.loads(json_str)
+            text_part = feedback_input.replace(json_str, '').strip()
+            result = {}
+            if text_part:
+                result['user_feedback_text'] = text_part
+            result['user_feedback_json'] = feedback_json
+            return result
+        except Exception:
+            pass  # If JSON parsing fails, treat as plain text
+    # If not JSON, treat as text
+    return {'user_feedback_text': feedback_input} if feedback_input else {}
+
 class HumanInTheLoop:
     """
     Manages human-in-the-loop interactions within the flow.
@@ -163,76 +188,37 @@ class HumanInTheLoop:
                 # ask for feedback after reviewing
                 return self.request_feedback(data, step_name, agent_name)
             elif choice == "3":
-                self.output_handler("Please enter the JSON representation of the modified data:")
-                self.output_handler("(For large data structures, consider editing specific parts only)")
-
-                import json
-                try:
-                    # First offer to see the data as JSON for easier editing
-                    json_str = json.dumps(data, indent=2)
-                    self.output_handler(f"Current data as JSON:\n{json_str}")
-                except:
-                    self.output_handler("Could not convert current data to JSON for display")
-
-                self.output_handler("\nEnter modified JSON data (or press Enter to open in editor):")
-                modified_input = self.input_handler()
-
-                if not modified_input:
-                    # Try to use a temporary file and external editor if available
-                    try:
-                        editor = os.environ.get('EDITOR',
-                                                'nano' if platform.system().lower() != 'windows' else 'notepad')
-
-                        # Create temporary file
-                        with tempfile.NamedTemporaryFile(suffix='.json', mode='w+', delete=False) as tf:
-                            json.dump(data, tf, indent=2)
-                            temp_filename = tf.name
-
-                        self.output_handler(f"Opening data in {editor}. Save and close when done.")
-
-                        # Try to open the editor
-                        try:
-                            subprocess.run([editor, temp_filename], check=True)
-
-                            # Read the modified content
-                            with open(temp_filename, 'r') as tf:
-                                modified_input = tf.read()
-
-                            # Clean up
-                            os.unlink(temp_filename)
-
-                        except subprocess.CalledProcessError as e:
-                            self.output_handler(f"Editor process failed: {e}")
-                            self.output_handler("Please enter modified data directly:")
-                            modified_input = self.input_handler()
-                        except Exception as e:
-                            self.output_handler(f"Failed to open editor: {e}")
-                            self.output_handler("Please enter modified data directly:")
-                            modified_input = self.input_handler()
-
-                    except Exception as e:
-                        self.output_handler(f"Editor setup failed: {e}")
-                        self.output_handler("Please enter modified data directly:")
-                        modified_input = self.input_handler()
-
-                if modified_input:
-                    try:
-                        # Try to parse the input as JSON
-                        modified_data = json.loads(modified_input)
-                        logger.info(
-                            f"Human modified {step_name} data" + (f" for agent {agent_name}" if agent_name else ""))
-                        return modified_data
-                    except json.JSONDecodeError as e:
-                        self.output_handler(f"Error parsing JSON: {e}. Would you like to try again? (y/n)")
-                        retry = self.input_handler().lower().startswith('y')
-                        if retry:
-                            return self.request_feedback(data, step_name, agent_name)
-                        else:
-                            self.output_handler("Using original data.")
-                            return data
-                else:
-                    self.output_handler("No modifications made. Using original data.")
+                self.output_handler("Opening your default editor for feedback...")
+                # Prepare template with instructions and current output JSON
+                template = (
+                    "# Enter your feedback below. You may write natural language above, and/or edit the JSON below.\n"
+                    "# Lines starting with # will be ignored.\n"
+                    "# Example:\n"
+                    "# fix entity extraction as some are incorrect.\n"
+                    "# {\n"
+                    "#   \"judged_structured_information\": { ... }\n"
+                    "# }\n\n"
+                    "\n# --- Current Output JSON ---\n"
+                    f"{json.dumps(data, indent=2)}\n"
+                )
+                feedback_input = self.open_editor_with_template(template)
+                # Remove comment lines
+                feedback_input = "\n".join(line for line in feedback_input.splitlines() if not line.strip().startswith("#"))
+                parsed = parse_feedback_input(feedback_input)
+                if not parsed:
+                    self.output_handler("No feedback provided. Using original data.")
                     return data
+                # If only JSON, use as modified data; if both, merge
+                if 'user_feedback_json' in parsed and not parsed.get('user_feedback_text'):
+                    return "feedback"
+                else:
+                    # Attach text feedback to the data for the agent to interpret
+                    result = data.copy() if isinstance(data, dict) else {}
+                    if 'user_feedback_json' in parsed:
+                        result['user_feedback_json'] = parsed['user_feedback_json']
+                    if 'user_feedback_text' in parsed:
+                        result['user_feedback_text'] = parsed['user_feedback_text']
+                    return result
 
         except Exception as e:
             if not isinstance(e, HumanInterventionRequired):
@@ -348,6 +334,16 @@ class HumanInTheLoop:
             logger.error(f"Error during confirmation request: {e}")
             return True
 
+    def open_editor_with_template(self, template: str) -> str:
+        editor = 'nano'
+        with tempfile.NamedTemporaryFile(suffix=".tmp", mode='w+', delete=False) as tf:
+            tf.write(template)
+            tf.flush()
+            subprocess.call([editor, tf.name])
+            tf.seek(0)
+            content = tf.read()
+        os.unlink(tf.name)
+        return content
 
 class ProgrammaticFeedbackHandler:
     """
@@ -464,7 +460,7 @@ class ProgrammaticFeedbackHandler:
         # Return "feedback" to trigger the feedback loop
         return "feedback"
 
-    def provide_feedback(self, choice: str, modified_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def provide_feedback(self, choice: str, modified_data: Optional[str] = None) -> Dict[str, Any]:
         """
         Provide feedback for the pending request.
 
@@ -497,16 +493,22 @@ class ProgrammaticFeedbackHandler:
         elif choice == "3":  # Modify
             if modified_data is None:
                 raise ValueError("Modified data required for modification choice")
-            try:
-                print(f"Human modified {step_name} data" + (f" for agent {agent_name}" if agent_name else ""))
-                print("%"*100)
-                print(modified_data)
-                print("%"*100)
+            parsed = parse_feedback_input(modified_data)
+            if not parsed:
+                print("No feedback provided. Using original data.")
                 self.clear_pending_feedback()
-                return modified_data
-            except json.JSONDecodeError as e:
-                print(f"Error parsing modified data: {e}")
-                raise ValueError("Invalid JSON format for modified data")
+                return data
+            if 'user_feedback_json' in parsed and not parsed.get('user_feedback_text'):
+                self.clear_pending_feedback()
+                return "feedback"
+            else:
+                result = data.copy() if isinstance(data, dict) else {}
+                if 'user_feedback_json' in parsed:
+                    result['user_feedback_json'] = parsed['user_feedback_json']
+                if 'user_feedback_text' in parsed:
+                    result['user_feedback_text'] = parsed['user_feedback_text']
+                self.clear_pending_feedback()
+                return "feedback"
         else:
             print(f"Invalid choice: {choice}")
             self.clear_pending_feedback()
