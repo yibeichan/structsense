@@ -30,7 +30,6 @@ from .default_config_sie_ner import get_agent_config, NER_TASK_CONFIG, EMBEDDER_
 
 # Start memory tracking
 tracemalloc.start()
-load_dotenv()
 
 # Configure logging
 logging.basicConfig(
@@ -674,6 +673,14 @@ def kickoff(
                 "judge_agent": False,
                 "humanfeedback_agent": True
             }
+
+        # Load environment variables from env_file if provided, else use the one setup using export command
+        if env_file:
+            load_dotenv(env_file, override=True)
+            logger.info(f"Loaded environment variables from {env_file} (override=True)")
+        else:
+            load_dotenv()
+            logger.info("Loaded environment variables from default .env")
 
         # Process input data
         processed_string = process_input_data(input_source)
