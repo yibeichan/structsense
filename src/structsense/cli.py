@@ -90,7 +90,7 @@ def extract(config, api_key, source, env_file, save_file):
     "--api_key",
     required=False,
     type=str,
-    help="Open router API key."
+    help="API key (e.g., OpenRouter)."
 )
 @click.option(
     "--source",
