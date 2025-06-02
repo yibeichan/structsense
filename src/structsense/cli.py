@@ -41,7 +41,13 @@ def cli(ctx):
     type=str,
     help="Optional path to an environment file to override the default .env file."
 )
-def extract(config, api_key, source, env_file):
+@click.option(
+    "--save_file",
+    required=False,
+    type=str,
+    help="Optional path to save the result as a JSON file."
+)
+def extract(config, api_key, source, env_file, save_file):
     """Extract the terms along with sentence using a single config file."""
 
     with open(config, 'r') as f:
@@ -70,6 +76,11 @@ def extract(config, api_key, source, env_file):
     click.echo("Result")
     click.echo(result)
     click.echo("*" * 100)
+    if save_file:
+        import json
+        with open(save_file, 'w') as f:
+            json.dump(result, f, indent=2)
+        click.echo(f"Result saved to {save_file}")
 
 
 @cli.command(
@@ -93,7 +104,13 @@ def extract(config, api_key, source, env_file):
     type=str,
     help="Optional path to an environment file to override the default .env file."
 )
-def sie(api_key, source, env_file):
+@click.option(
+    "--save_file",
+    required=False,
+    type=str,
+    help="Optional path to save the result as a JSON file."
+)
+def sie(api_key, source, env_file, save_file):
     """
     Run the Structured Information Extraction (SIE) pipeline using the default config file.
     """
@@ -127,6 +144,11 @@ def sie(api_key, source, env_file):
     click.echo("Result")
     click.echo(result)
     click.echo("*" * 100)
+    if save_file:
+        import json
+        with open(save_file, 'w') as f:
+            json.dump(result, f, indent=2)
+        click.echo(f"Result saved to {save_file}")
 
 
 if __name__ == "__main__":
