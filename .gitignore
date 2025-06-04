@@ -12,7 +12,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 example/.structsense_env
-example/api
 # C extensions
 *.so
 .chainlit/
@@ -41,7 +40,7 @@ MANIFEST
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
-
+*.env
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
