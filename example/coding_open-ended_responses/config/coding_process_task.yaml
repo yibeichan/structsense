@@ -1,0 +1,118 @@
+generate_categories_task:
+  description: > 
+    Read the {question} and the respective open-ended {responses} carefully and thoroughly.
+    Identify the main themes or categories that emerge from the responses.
+    For each category, provide a brief description.
+  expected_output: >
+    output format: json
+    Example output:
+    {
+      "categories": [
+        {
+          "category_name": "Data Analysis Techniques",
+          "description": "Responses discussing various methods and techniques used in data analysis."
+        },
+        {
+          "category_name": "Instructional Use",
+          "description": "Responses related to instructional use, including teaching methods and educational resources."
+        },
+        {
+          "category_name": "Data Literacy Challenges",
+          "description": "Responses discussing data literacy challenges, including barriers to understanding data and analytics."
+        }
+      ]
+    }
+  agent_id: generate_categories_agent
+
+coding_process_task:
+  description: >
+      Read the provided {categories} and their descriptions.
+      You are given a {question} and the respective open-ended {responses}.
+      Task:
+      1. For each response:
+        a) Read the text carefully.
+        b) Assign it to one of the provided categories if the response clearly matches that category’s description.
+        c) Provide a brief explanation for the assignment in a "reason" field.
+        d) If the response does not fit any existing category, leave the "assigned_category" field empty and provide a reason. Do not create new categories. 
+        e) If a response is ambiguous between two categories, list both and briefly explain in a “reason” field.
+
+  expected_output: >
+    output format: json
+    Example output:
+    {
+      "responses": [
+        {
+          response_id: 1,
+          "response_text": "I use various data analysis techniques to interpret results.",
+          "assigned_category": "Data Analysis Techniques",
+          "reason": "The response discusses methods and techniques used in data analysis."
+        },
+        {
+          response_id: 2,
+          "response_text": "The instructional use of data is crucial for effective teaching.",
+          "assigned_category": "Instructional Use",
+          "reason": "This response highlights the importance of data in teaching."
+        },
+        {
+          response_id: 3,
+          "response_text": "I face challenges in understanding data literacy.",
+          "assigned_category": "Data Literacy Challenges",
+          "reason": "The response discusses challenges in understanding data literacy."
+        },
+        {
+          response_id: 4,
+          "response_text": "Response 4",
+          "assigned_category": "",
+          "reason": "This response does not fit any existing category."
+        }
+      ]
+    }
+  agent_id: >
+    - coder_agent_1
+    - coder_agent_2
+
+agreement_task:
+  description: >
+    You are given the {coder_1_categories} and {coder_2_categories} from two different coding agents.
+    Compare the outputs from Coder1 and Coder2 to compute inter-coder reliability.
+    After comparing assigned categories for all responses, calculate percent agreement and Cohen’s Kappa.
+    List all response IDs where the two coders disagreed (i.e., sets of assigned codes do not match exactly).
+  expected_output: >
+    output format: json
+    Example output:
+    {
+      "percent_agreement": 0.75,
+      "cohens_kappa": 0.6,
+      "disagreements": [
+        {
+          "response_id": 4,
+          "coder_1_category": "",
+          "coder_2_category": "Data Literacy Challenges",
+          "reason": "Coder 1 did not assign a category, while Coder 2 assigned it to Data Literacy Challenges."
+        }
+      ]
+    }
+  agent_id: agreement_agent
+
+disagreement_resolution_task:
+  description: >
+    You are given the {disagreements} from the agreement task.
+    For each disagreement, provide a resolution by selecting one of the following options:
+    1. Assign the response to Coder 1's category.
+    2. Assign the response to Coder 2's category.
+    3. Create a new category that aligns more semantically with the response.
+    4. Leave the response unclassified (no category assigned).
+    5. Provide a brief explanation for your choice.
+  expected_output: >
+    output format: json
+    Example output:
+    {
+      "resolved_disagreements": [
+        {
+          "response_id": 4,
+          "assigned_category": "Data Literacy Challenges",
+          "reason": "Coder 2's category aligns better with the response content."
+        }
+      ]
+    }
+  agent_id: disagreement_resolution_agent
