@@ -23,7 +23,7 @@ agent_config:
     backstory: >
       You are a trained semantic expert who analyzes "assigned_category" and performs the concept mapping.
     llm:
-      model: openrouter/openai/gpt-4o-mini
+      model: openrouter/openai/gpt-4.1-mini
       base_url: https://openrouter.ai/api/v1
       api_key: sk-or-
 
@@ -41,13 +41,13 @@ agent_config:
 
   humanfeedback_agent:
     role: >
-      agent role
+      Human feedback processor Agent
     goal: >
-      agent goal
+      Evaluate the {judged_structured_information_with_human_feedback} and review if everything is correct as human domain expert.
     backstory: >
-      agent back story
+      You are an AI assistant that acts as a human expert. Your task is to review classification and concept alignment results and correct as human expert.
     llm:
-      model: openrouter/openai/gpt-4o-mini
+      model: openrouter/openai/gpt-4.1-mini
       base_url: https://openrouter.ai/api/v1
       api_key: sk-or-v1-
 
