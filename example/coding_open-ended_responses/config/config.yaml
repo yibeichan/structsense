@@ -11,7 +11,7 @@ agent_config:
     backstory: >
       You are a trained observer who analyzes open-ended responses and classifies items into categories.
     llm:
-      model: openrouter/openai/gpt-4o-mini
+      model: openrouter/openai/gpt-4.1-mini
       base_url: https://openrouter.ai/api/v1
       api_key: sk-
 
@@ -35,7 +35,7 @@ agent_config:
     backstory: >
       You are an AI assistant specialized in analyzing and comparing classification and concept alignment results from extractor and alignment agent. Your expertise includes identifying similarities and differences in categorization, ensuring accurate representation of agreement.
     llm:
-      model: openrouter/openai/gpt-4o-mini
+      model: openrouter/google/gemini-2.5-pro-preview
       base_url: https://openrouter.ai/api/v1
       api_key: sk-or-v1-
 
@@ -99,12 +99,12 @@ task_config:
 
       Instructions:
         alignment instructions:
-          - For each assigned_category in `extracted_structured_information`, find the most appropriate matching concept from an ontology or schema.
-          - Concept alignment means associating a term with a known ontological class or identifier (e.g., EDAM:3365 etc.).
+          - For each assigned_category in `extracted_structured_information`, find the most appropriate matching concept from an ontology or schema (e.g., NCIT:C159271, schema.org and other related ontologies).
+          - Concept alignment means associating a term with a known ontological class or identifier.
           - Use a local knowledge source or indexed search system to retrieve candidate concepts (labels or IDs) where possible and mark in remarks if a local knowledge source is used.
           - Record the matched ontology information for each term:
-            - ontology_label (e.g., "Data architecture, analysis and design")
-            - assigned_category_mapped_to_ontology (e.g., "EDAM:3365")
+            - ontology_label - label from the ontology or schema class
+            - assigned_category_mapped_to_ontology - iri of the ontology or schema class
     expected_output: >
       output format: json
       Example output:
