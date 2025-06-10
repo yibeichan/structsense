@@ -1,0 +1,130 @@
+#agent config
+# Do not introduce any new variable name
+# the variables inside {} receives data from the previous agent. the {literature} variable is the one that passes the
+# initial input.
+agent_config:
+  extractor_agent:
+    role: >
+      agent role
+    goal: >
+      goal
+    backstory: >
+     agent back story
+    llm:
+      model: openrouter/openai/gpt-4o-mini
+      base_url: https://openrouter.ai/api/v1
+
+  alignment_agent:
+    role: >
+      agent role
+    goal: >
+      agent goal
+    backstory: >
+      agent back story
+    llm:
+      model: openrouter/openai/gpt-4o-mini
+      base_url: https://openrouter.ai/api/v1
+
+  judge_agent:
+    role: >
+      agent role
+    goal: >
+      goal
+    backstory: >
+      agent back story
+    llm:
+      model: openrouter/openai/gpt-4o-mini
+      base_url: https://openrouter.ai/api/v1
+
+  humanfeedback_agent:
+    role: >
+     agent role
+    goal: >
+      agent goal
+    backstory: >
+      agent back story
+    llm:
+      model: openrouter/openai/gpt-4o-mini
+      base_url: https://openrouter.ai/api/v1 
+
+# agent task config
+task_config:
+  extraction_task:
+    description: >
+      #add task description
+      
+      Input: {literature}
+   
+
+    expected_output: >
+      output format: json
+      Example output: add example
+
+    # do not chage this, remove it later
+    agent_id: extractor_agent
+
+  alignment_task:
+    description: > 
+      Inputs: {extracted_structured_information}
+      
+      Instructions:
+       
+
+    expected_output: >
+      output format: json
+      Example output: add example
+
+    # do not chage this, remove it later
+    agent_id: alignment_agent
+
+  judge_task:
+    description: >
+      {aligned_structured_information} 
+         
+      Instuctions: add instructions
+
+    expected_output: > 
+      output format: json 
+      Example output: addd example
+
+    # do not chage this, remove it later
+    agent_id: judge_agent
+
+  humanfeedback_task:
+    description: >
+      Input: {judged_structured_information_with_human_feedback}
+
+      modification_context: 
+        {modification_context}
+      
+      user_feedback_text:
+        {user_feedback_text}
+      
+      Instructions:
+       add you instructions
+      
+  
+
+    expected_output: > 
+      output format: json
+      Example output: addd example
+
+    agent_id: humanfeedback_agent
+
+# embedding config
+# see for more details and parameters for config
+# https://docs.crewai.com/concepts/memory#additional-embedding-providerscl
+embedder_config:
+  provider: ollama
+  config:
+    api_base: http://localhost:11434
+    model: nomic-embed-text:latest
+
+# knowledge search config
+knowledge_config:
+  search_key: #local vector database
+    - entity
+    - label
+# human in loop config
+human_in_loop_config:
+  humanfeedback_agent: true

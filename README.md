@@ -28,13 +28,15 @@ The below is the architecture of the `StructSense`.
 ## 🧠 Example Use Cases
 - Entity and relation extraction from text
   - Knowledge graph construction
+## 📁 Examples
 
-## 📁Examples
+- Explore the [`example`](example) directory for usage examples and reference configurations.
 
--  [`Using openrouter/`](./example/ner_example) 
-  - You need the openrouter API key
-- [`Using Ollama`](./example/ner_example_ollama) 
-  - Install ollama and pull the models which you intend to use. This example uses `deepseek-r1:14b` model. You can get it from ollama by running `ollama pull deepseek-r1:14b` command. If you want to use different models, e.g., `llama3.2:latest`, you need to pull it similar to `deepseek-r1:14b`. Make sure that ollama is running. You can run ollama using `ollama serve`.
+## 📄 Blank Configuration Template
+
+- Refer to the [`config_template`](config_template) directory for a blank configuration template.  
+  Before using it, make sure to read the detailed explanation of the configuration template provided in the sections below (`Configuration Template`).
+
 ---
 ## 📄 Requirements
 ### 📄 PDF Extraction Configuration
@@ -175,252 +177,109 @@ ENABLE_MLFLOW=false
 ENABLE_KG_SOURCE=false  
 ```
 ---
+### 📄 Configuration Template
 
-### 📄 YAML Configuration
-In order to run `structsense` you need 4 YAML configuration files.
-- The first is the `agent configuration`.
-  - The agent configuration. You can define as many agents as you want, we process it dynamically.
-    - Example agent configuration.
-      ```yaml 
-        extractor_agent:
-          role: >
-            Neuroscience Named Entity Recognition (NER) Extractor Agent
-          goal: >
-            Perform Named Entity Recognition (NER) on neuroscience {literature} and return structured JSON output.
-          backstory: >
-            You are an AI assistant specialized in processing neuroscience and who do not hallucinate. 
-            Your expertise includes recognizing and categorizing named entities such as anatomical regions, experimental conditions, and cell types. 
-            Your responses strictly adhere to JSON format, ensuring accurate and structured data extraction for downstream applications.
-          llm:
-            model: openrouter/openai/gpt-4o-2024-11-20
-            base_url: https://openrouter.ai/api/v1
-            frequency_penalty: 0.1
-            temperature: 0.7
-            seed: 53
-            api_key: sk-or-v1-
-        
-        alignment_agent:
-          role: >
-            Neuroscience Named Entity Recognition (NER) Concept Alignment Agent
-          goal: >
-            Perform concept alignment to the extracted Named Entity Recognition (NER) by extractor_agent {extracted_structured_information} and return structured JSON output.
-          backstory: >
-            You are an AI assistant specialized in processing neuroscience concept alignment with structured models, i.e., ontologies or schemas and who do not hallucinate. 
-            Your expertise includes recognizing and categorizing extracted named entities such as anatomical regions, experimental conditions, and cell types and aligning the recognized named entities such as cell types with corresponding ontological terms. 
-            Your responses strictly adhere to JSON format, ensuring accurate and structured data extraction for downstream applications.
-          llm:
-            model: openrouter/openai/gpt-4o-2024-11-20
-            base_url: https://openrouter.ai/api/v1
-            frequency_penalty: 0.1
-            temperature: 0.7
-            seed: 53
-            api_key: sk-or-v1-
-        
-        judge_agent:
-          role: >
-            Neuroscience Named Entity Recognition (NER) Judge Agent
-          goal: >
-            Evaluate the {aligned_structured_information} based on predefined criteria and generate a structured JSON output reflecting the assessment results.
-          backstory: >
-            You are an AI assistant with expert knowledge in neuroscience and structured models, i.e., ontologies or schemas, and someone who does not hallucinate.  
-            Your task is to evaluate the {aligned_structured_information} based on the accuracy and quality of the alignment. 
-            Assign the score between 0-1 with 1 being the highest score of your evaluation.
-            Your responses strictly adhere to JSON format, ensuring accurate and structured data extraction for downstream applications.
-          llm:
-            model: openrouter/openai/gpt-4o-2024-11-20
-            base_url: https://openrouter.ai/api/v1
-            frequency_penalty: 0.1
-            temperature: 0.7
-            seed: 53
-            api_key: sk-or-v1-
-        ```
-    - In the YAML file: 
-        - **ID**: Unique identifier
-        - **Goal**: Task to be performed
-        - **LLM config**: Model, base URL, temperature, etc.
-        - **Backstory**: Background knowledge the agent leverages
-        - **Output variable**: Result name for the next agent/task
-      
-    For further details, refer to [Role-Goal-Backstory](https://docs.crewai.com/guides/agents/crafting-effective-agents#core-principles-of-effective-agent-design)
-- The second is the `task configuration`.
-  - Task configuration allows you to describes the tasks for the agent. 
-     - Example task configuration.
-       ```yaml
-        extraction_task:
-          description: >
-            From the given literature extract named entities from neuroscience statements.
-            A named entity is anything that can be referred to with a proper name.
-            Some common named entities in neuroscience articles are animal species (e.g., mouse, drosophila, zebrafish),
-            anatomical regions (e.g., neocortex, mushroom body, cerebellum), experimental conditions (e.g., control, tetrodotoxin treatment, Scn1a knockout),
-            and cell types (e.g., pyramidal neuron, direction-sensitive mechanoreceptor, oligodendrocyte)
-        
-            Literature:
-            {literature}
-          expected_output: >
-            output format: json
-            Example output:
-            {
-              "extracted_terms": {
-                "1": [
-                  {
-                    "entity": "mouse",
-                    "label": "ANIMAL_SPECIES",
-                    "sentence": "These particles were visualized by fluorescent immunohistochemistry using mouse monoclonal anti-human myelin basic protein (MBPh) antibody (clone SMI-99).",
-                    "start": 79,
-                    "end": 84,
-                    "paper_location": "methods",
-                    "paper_title": "Concentration of myelin debris-like myelin basic protein-immunoreactive particles in the distal (anterior)-most part of the myelinated region in the normal rat optic nerve",
-                    "doi": "10.1101/2025.03.19.643597"
-                  }
-                ]
-              }
-            }
-          agent_id: extractor_agent
-        
-        alignment_task:
-          description: >
-            Take the output of extractor_agent {extracted_structured_information} as input and perform the concept alignment using the ontological concepts.
-            A concept alignment is where you align the given entity to the matching concept or class from an ontology or schema.
-          expected_output: >
-            output format: json
-            Example output:
-            {
-              "aligned_ner_terms": {
-                "1": [
-                  {
-                    "entity": "oligodendrocyte",
-                    "label": "CELL_TYPE",
-                    "ontology_id": "CL:0000128",
-                    "ontology_label": "Oligodendrocyte",
-                    "sentence": "Individual oligodendrocytes provide...",
-                    "start": 14,
-                    "end": 29,
-                    "paper_location": "discussion",
-                    "paper_title": "Concentration of myelin debris-like...",
-                    "doi": "10.1101/2025.03.19.643597"
-                  }
-                ] 
-              }
-            }
-          agent_id: alignment_agent
-        
-        judge_task:
-          description: >
-            Take the output of alignment agent {aligned_structured_information} as input and perform the following evaluation:
-            1. Assess the quality and accuracy of the alignment with the ontology or schema.
-            2. Assign a score between 0 and 1 as a judge_score.
-            3. Update the {aligned_structured_information} by adding the judge_score.
-          expected_output: >
-            output format: json
-            Example output:
-            {
-              "judge_ner_terms": {
-                "1": [
-                  {
-                    "entity": "oligodendrocyte",
-                    "label": "CELL_TYPE",
-                    "ontology_id": "CL:0000128",
-                    "ontology_label": "Oligodendrocyte",
-                    "judge_score": "0.8",
-                    "sentence": "Individual oligodendrocytes provide...",
-                    "start": 14,
-                    "end": 29,
-                    "paper_location": "discussion",
-                    "paper_title": "Concentration of myelin debris-like...",
-                    "doi": "10.1101/2025.03.19.643597"
-                  }
-                ]
-              }
-            }
-          agent_id: judge_agent
-       ```
-     - Each task links to a specific agent via `agent_id` and defines:
-       - **Description**: What the task does
-       - **Input/Output schema**: Example output structure in JSON
-       - **Agent Link**: Tied to an `id` from `agents configuration`
-       - 
-       > ⚠️ **Note**:  The variables {variable_name} are replaced at the run-time. Also, pay attention in the tasks where we are using the output variable defined in `agent configuration`.
+A blank configuration template is available in the [config_template](config_template) directory.
 
-
-- The third is the `embedding configuration` For more about the different embedding configurations using different provider see [https://docs.crewai.com/concepts/memory#additional-embedding-providerscl](https://docs.crewai.com/concepts/memory#additional-embedding-providerscl).
-  ```yaml
-  embedder_config:
-    provider: ollama
-    config:
-      api_base: http://localhost:11434
-      model: nomic-embed-text:latest
-  ``` 
-- The fourth and the final one is the `search configuration`, where we define the search keys. Since the ontology/schemas are our current knowledge source, which is why you see the label and entity as search key. _This is optional if you do not use knowledge source._
-  ```yaml
-  search_key: #local vector database
-    - entity
-    - label
-  ```
-- Fifth is the human in the loop config (optional).
-  ```yaml
-    extractor_agent: false
-    alignment_agent: false
-    judge_agent: false
-    humanfeedback_agent: true
-  ```
-
-## 📦 Installation
-Install this package via :
-
-```sh
-pip install structsense
-```
-
-Or get the newest development version via:
-
-```sh
-pip install git+https://github.com/sensein/ner_framework.git
-```
-
-### 🧪 CLI Usage
-
-You can run `StructSense` using the CLI tool `structsense-cli`. Below are a few examples showing different ways to provide input.
+Please follow the guidelines below when updating the configuration:
 
 ---
 
-#### 📄 1. Extract from a PDF file (with knowledge source)
+#### ⚠️ Important Notes
 
-```bash
-structsense-cli extract \ 
-  --agentconfig config/ner_agent.yaml \
-  --taskconfig config/ner_task.yaml \
-  --embedderconfig config/embedding.yaml \
-  --knowledgeconfig config/search_ontology_knowledge.yaml \
-  --enable_human_feedback true \
-  --agent_feedback_config config/human_in_loop.yaml \
-  --source somefile.pdf 
+- **Do not rename** predefined YAML keys such as `task_config` and `agent_config`.  
+  Only update the following:
+  - Agent descriptions
+  - Task descriptions
+  - Embedding configurations
+  - Knowledge configurations
+
+- **Do not replace variables** enclosed in curly braces (`{}`); they are dynamically populated at runtime:
+  - `{literature}`: Input text, e.g., extracted PDF content
+  - `{extracted_structured_information}`: Output from the extractor agent
+  - `{aligned_structured_information}`: Output from the alignment agent
+  - `{judged_structured_information_with_human_feedback}`: Output from the judge agent
+  - `{modification_context}` and `{user_feedback_text}`: User feedback used by the feedback agent
+
+---
+
+### 🧠 Agent Configuration
+
+The following agents should not be renamed or removed:
+- `extractor_agent`
+- `alignment_agent`
+- `judge_agent`
+- `humanfeedback_agent`
+
+Each agent should be configured with the following fields: `role`, `goal`, `backstory`, and `llm`.
+
+For best practices, refer to the [Crew AI Core Principles of Effective Agent Design](https://docs.crewai.com/guides/agents/crafting-effective-agents#core-principles-of-effective-agent-design).
+
+```yaml
+agent_config:
+  extractor_agent:
+    role: >
+      agent role
+    goal: >
+      goal
+    backstory: >
+      agent backstory
+    llm:
+      model: openrouter/openai/gpt-4o-mini
+      base_url: https://openrouter.ai/api/v1
+
+  alignment_agent:
+    ...
 ```
-#### 💬 2. Extract from raw text (with knowledge source)
+### 🧾 Task Configuration
 
-```shell
-structsense-cli extract \
-  --agentconfig config/ner_agent.yaml \
-  --taskconfig config/ner_task.yaml \
-  --embedderconfig config/embedding.yaml \
-  --knowledgeconfig config/search_ontology_knowledge.yaml \
-  --enable_human_feedback true \
-  --agent_feedback_config config/human_in_loop.yaml \
-  --source "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function."
+Each task corresponds to a specific agent and must not be renamed:
+
+- `extraction_task`
+- `alignment_task`
+- `judge_task`
+- `humanfeedback_task`
+
+Each task should include:
+
+- **`description`**:  
+  A detailed explanation of the task, including the required input (e.g., `{literature}` for extraction, `{extracted_structured_information}` for alignment, etc.).
+
+- **`expected_output`**:  
+  The expected output format. The format must be JSON. You may specify the structure or give an example.
+
+- **`agent_id`**:  
+  This key assigns the task to its corresponding agent. The value must match the agent ID defined under `agent_config`.
+
+Example:
+```yaml
+task_config:
+  extraction_task:
+    description: >
+      Extract structured information from the given literature.
+      Input: {literature}
+    expected_output: >
+      Format: JSON  
+      Example: {"entities": [...], "relations": [...]}
+    agent_id: extractor_agent
+```
+To learn more about the tasks, see [Crafting Effective Tasks for Your Agents](https://docs.crewai.com/guides/agents/crafting-effective-agents#crafting-effective-tasks-for-your-agents).
+### 👤 Human-in-the-Loop Configuration
+Controls whether the human feedback loop is enabled.
+```yaml
+# Human-in-the-loop configuration
+human_in_loop_config:
+  humanfeedback_agent: true
+```
+### 🧬 Embedding Configuration
+Defines the configuration for the embedding model used in the system.
+```yaml
+embedder_config:
+  provider: ollama
+  config:
+    api_base: http://localhost:11434
+    model: nomic-embed-text:latest
 ```
 
-#### ⚡ 3. Extract from raw text without human loop
-
-```shell
-structsense-cli extract \
-  --agentconfig config/ner_agent.yaml \
-  --taskconfig config/ner_task.yaml \
-  --embedderconfig config/embedding.yaml \
-  --knowledgeconfig config/search_ontology_knowledge.yaml \
-  --enable_human_feedback false \ 
-  --source "Additionally, mutations in the APOE gene have been linked to neurodegenerative disorders, impacting astrocytes and microglia function."
-```
-
-## In progress
-- [X] [`More examples (e.g., using ollama)`](example/ner_example_ollama)
-- [ ] Validations (e.g., benchmarking)
-- [X] Human feedback component.
+### License
+[Apache License Version 2.0](LICENSE.txt)

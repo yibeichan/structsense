@@ -5,6 +5,8 @@ import tracemalloc
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional, Tuple, Union, Any, Callable, List
+import time
+import concurrent.futures
 
 # Filter warnings at the beginning
 import warnings
@@ -12,7 +14,7 @@ import warnings
 warnings.filterwarnings("ignore")
 import json
 from crewai import Crew
-from crewai.flow.flow import Flow, listen, start
+from crewai.flow.flow import Flow, listen, start, or_
 from crewai.knowledge.source.string_knowledge_source import StringKnowledgeSource
 from crewai.memory import EntityMemory, LongTermMemory, ShortTermMemory
 from crewai.memory.storage.ltm_sqlite_storage import LTMSQLiteStorage
@@ -23,7 +25,14 @@ from utils.types import ExtractedTermsDynamic, AlignedTermsDynamic, JudgedTermsD
 from crew.dynamic_agent import DynamicAgent
 from crew.dynamic_agent_task import DynamicAgentTask
 from utils.ontology_knowedge_tool import OntologyKnowledgeTool
-from utils.utils import load_config, process_input_data, has_modifications
+from utils.utils import (
+    load_config,
+    process_input_data,
+    replace_api_key,
+    transform_extracted_data,
+    has_modifications
+)
+from utils.text_chunking import split_text_into_chunks, merge_chunk_results
 
 # Add new import for hardcoded configs
 # from .default_config_sie_ner import get_agent_config, NER_TASK_CONFIG, EMBEDDER_CONFIG, HUMAN_IN_LOOP_CONFIG, SEARCH_ONTOLOGY_KNOWLEDGE_CONFIG
@@ -34,7 +43,7 @@ tracemalloc.start()
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(name)s - %(levelname)s - [%(threadName)s] - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -65,36 +74,24 @@ class StructSenseFlow(Flow):
         logger.info(f"Initializing StructSenseFlow")
         self.source_text = source_text
         self.enable_human_feedback = enable_human_feedback
-
-        # Initialize human-in-the-loop component
         self.human = HumanInTheLoop(
             enable_human_feedback=enable_human_feedback,
             agent_feedback_config=agent_feedback_config
         )
-
-        # Load configurations
         try:
             self.agent_config = load_config(agent_config, "agent")
             self.task_config = load_config(task_config, "task")
             self.embedder_config = load_config(embedder_config, "embedder")
-
             if knowledge_config is None:
                 os.environ["ENABLE_KG_SOURCE"] = "false"
                 self.knowledge_config = {"search_key": {}}
             else:
                 self.knowledge_config = load_config(knowledge_config, "knowledge")
-
         except Exception as e:
             logger.error(f"Configuration loading failed: {e}")
             raise ConfigError(f"Failed to load configurations: {str(e)}")
-
-        # Initialize monitoring tools if enabled
         self._setup_monitoring()
-
-        # Initialize memory components
         self._initialize_memory()
-
-        # Initialize shared state for crew communication
         self.shared_state = {
             "extracted_terms": None,
             "aligned_terms": None,
@@ -103,6 +100,116 @@ class StructSenseFlow(Flow):
             "current_step": None,
             "last_error": None
         }
+
+    @start()
+    def process_inputs(self):
+        """Start processing the input data."""
+        logger.info("Starting structured information processing flow")
+        self._update_shared_state("process_inputs", self.source_text)
+
+
+    @listen(process_inputs)
+    async def extracted_structured_information(self):
+        """Extract structured information from the source text."""
+        start_time = time.time()
+        logger.info("Starting structured information extraction")
+
+        # Initialize extractor components
+        extractor_agent, extractor_task = self._initialize_agent_and_task(
+            "extractor_agent",
+            "extraction_task",
+            ExtractedTermsDynamic
+        )
+
+        if not extractor_agent or not extractor_task:
+            logger.error("Extractor initialization failed")
+            return None
+
+        agent_name = "extractor_agent"
+
+        # Split text into chunks for parallel processing
+        logger.info("Splitting text into chunks for parallel processing...")
+        chunks = split_text_into_chunks(self.source_text)
+        logger.info(f"Split text into {len(chunks)} chunks for parallel processing")
+        logger.debug(f"Chunk sizes: {[len(chunk) for chunk in chunks]}")
+
+        chunk_results = []
+        total_chunks = len(chunks)
+
+        def process_chunk(chunk, idx):
+            print("*"*100)
+            print(f"[Thread] Starting processing for chunk {idx+1}/{total_chunks} (size: {len(chunk)} chars)")
+            print("#"*100)
+            logger.info(f"[Thread] Starting processing for chunk {idx+1}/{total_chunks} (size: {len(chunk)} chars)")
+            chunk_start_time = time.time()
+            try:
+                inputs = {"literature": chunk}
+                extractor_crew = self._create_crew_with_knowledge(extractor_agent, extractor_task)
+                print("@"*100)
+                print("@" * 100)
+                print(f"Extractor agent with chunk data {inputs}")
+                print("@" * 100)
+                print("@" * 100)
+                chunk_result = extractor_crew.kickoff(inputs=inputs)
+                elapsed = time.time() - chunk_start_time
+                if chunk_result:
+                    logger.info(f"[Thread] Finished chunk {idx+1}/{total_chunks} in {elapsed:.2f}s, got {len(chunk_result.to_dict().get('terms', [])) if hasattr(chunk_result, 'to_dict') else 'unknown'} terms")
+                    print("*" * 100)
+                    print(f"[Thread] Finished chunk {idx+1}/{total_chunks} in {elapsed:.2f}s, got terms =  {chunk_result}")
+                    print("#" * 100)
+                    return chunk_result.to_dict()
+                else:
+                    print("*" * 100)
+                    print(f"[Thread] No result for chunk {idx + 1}/{total_chunks} (took {elapsed:.2f}s)")
+                    print("#" * 100)
+                    logger.warning(f"[Thread] No result for chunk {idx+1}/{total_chunks} (took {elapsed:.2f}s)")
+                    return None
+            except Exception as exc:
+                logger.error(f"[Thread] Exception in chunk {idx+1}/{total_chunks}: {exc}")
+                return None
+
+        logger.info(f"Processing {total_chunks} chunks in parallel using ThreadPoolExecutor...")
+        print("*" * 100)
+        print("#" * 100)
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = {executor.submit(process_chunk, chunk, i): i for i, chunk in enumerate(chunks)}
+            for future in concurrent.futures.as_completed(futures):
+                i = futures[future]
+                try:
+                    result = future.result()
+                    if result:
+                        chunk_results.append(result)
+                        print("*" * 100)
+                        print(chunk_results)
+                        print("--" * 100)
+                        print(f"[Main] Collected result {result} for chunk {i+1}/{total_chunks}")
+                        print("*" * 100)
+                        logger.info(f"[Main] Collected result for chunk {i+1}/{total_chunks}")
+                    else:
+                        logger.warning(f"[Main] No result for chunk {i+1}/{total_chunks}")
+                except Exception as exc:
+                    logger.error(f"[Main] Exception collecting chunk {i+1}/{total_chunks}: {exc}")
+
+        print("*" * 100)
+        print(f"All chunks processed. {(chunk_results)} out of {total_chunks} returned results.")
+        logger.info(f"All chunks processed. {len(chunk_results)} out of {total_chunks} returned results.")
+        print("$*" * 100)
+        if not chunk_results:
+            logger.warning("No results from any chunks")
+            return None
+
+        # Merge chunk results
+        combined_result = merge_chunk_results(chunk_results)
+        
+        # Transform the data into the expected format for alignment
+        transformed_terms = transform_extracted_data(combined_result)
+        
+        # Update shared state with transformed terms
+        self._update_shared_state("extracted_terms", {"terms": transformed_terms})
+        
+        total_time = time.time() - start_time
+        logger.info(f"Extraction complete with {len(transformed_terms)} terms in {total_time:.2f} seconds")
+        return {"terms": transformed_terms}
 
     def _setup_monitoring(self) -> None:
         """Set up monitoring tools if enabled."""
@@ -278,83 +385,6 @@ class StructSenseFlow(Flow):
         """Start processing the input data."""
         logger.info("Starting structured information processing flow")
         self._update_shared_state("process_inputs", self.source_text)
-
-
-    @listen(process_inputs)
-    async def extracted_structured_information(self):
-        """Extract structured information from the source text."""
-        logger.info("Starting structured information extraction")
-
-        # Initialize extractor components
-        extractor_agent, extractor_task = self._initialize_agent_and_task(
-            "extractor_agent",
-            "extraction_task",
-            ExtractedTermsDynamic
-        )
-
-        if not extractor_agent or not extractor_task:
-            logger.error("Extractor initialization failed")
-            return None
-
-        agent_name = "extractor_agent"
-
-        # Create and run the extractor crew
-        inputs = {"literature": self.source_text}
-        extractor_crew = self._create_crew_with_knowledge(extractor_agent, extractor_task)
-
-        # Provide observation before extraction
-        # if self.enable_human_feedback and self.human.is_feedback_enabled_for_agent(agent_name):
-        #     self.human.provide_observation(
-        #         message="Starting extraction process with the following input:",
-        #         data=f"Text length: {len(self.source_text)} characters",
-        #         agent_name=agent_name
-        #     )
-
-        extractor_result = extractor_crew.kickoff(inputs=inputs)
-
-        if not extractor_result:
-            logger.warning("Extractor crew returned no results")
-            return None
-
-        # Update shared state and return results
-        result_dict = extractor_result.to_dict()
-        self._update_shared_state("extracted_terms", result_dict)
-        logger.info(f"Extraction complete with {len(result_dict.get('terms', []))} terms")
-
-        # disabled feedback for extractor
-        # if self.enable_human_feedback and self.human.is_feedback_enabled_for_agent(agent_name):
-        #     feedback_dict = self.human.request_feedback(
-        #         data=result_dict,
-        #         step_name="structured information extraction",
-        #         agent_name=agent_name
-        #     )
-        #
-        #     # Check if any modifications were made
-        #     if has_modifications(feedback_dict, result_dict):
-        #         logger.info("Processing modifications based on human feedback")
-        #         print("*"*100)
-        #         print("Data modified, running extraction crew again")
-        #         print("*"*100)
-        #         # Run the extractor crew again with modified data
-        #         modified_result = extractor_crew.kickoff(inputs={
-        #             "literature": self.source_text,
-        #             "user_feedback_data": feedback_dict,
-        #             "modification_context": "Process the requrested user feedback on extracted data. Also take note of the shared_state that contains results from other agents as well. User Feedback Handling: If the input includes modifications previously made based on human/user feedback: Detect and respect these changes (e.g., altered extracted terms). Do not overwrite user-modified terms. Instead, annotate in remarks that user-defined values were retained and evaluated accordingly."
-        #         })
-        #
-        #         if modified_result:
-        #             feedback_dict = modified_result.to_dict()
-        #             self._update_shared_state("extracted_terms", feedback_dict)
-        #         else:
-        #             logger.warning("Modification processing returned no results")
-        #             return result_dict
-        #
-        #     # Update shared state with feedback results
-        #     if feedback_dict:
-        #         self._update_shared_state("extracted_terms", feedback_dict)
-        #         result_dict = feedback_dict
-
-        return result_dict
 
     @listen(extracted_structured_information)
     async def align_structured_information(self, extracted_info):
@@ -638,24 +668,26 @@ def kickoff(
         enable_human_feedback: bool = True,
         agent_feedback_config: Optional[Dict[str, bool]] = None,
         feedback_handler: Optional[ProgrammaticFeedbackHandler] = None,
-        env_file: Optional[str] = None
+        env_file: Optional[str] = None,
+        api_key: Optional[str] = None
 ) -> Union[Dict[str, Any], str]:
     """
-    Run the StructSense flow with the given configurations.
+    Kickoff the StructSense flow with the given configurations.
 
     Args:
-        agentconfig: Agent configuration file path or dict
-        taskconfig: Task configuration file path or dict
-        embedderconfig: Embedder configuration file path or dict
-        input_source: Input text source file path or direct text
-        knowledgeconfig: Optional knowledge configuration file path or dict
-        enable_human_feedback: Whether to enable human-in-the-loop functionality
-        agent_feedback_config: Optional dictionary mapping agent names to feedback enabled status
-        feedback_handler: Optional custom feedback handler for programmatic feedback
-        env_file: Optional path to an environment file to override the default .env file
+        agentconfig: Agent configuration file path or dictionary
+        taskconfig: Task configuration file path or dictionary
+        embedderconfig: Embedder configuration file path or dictionary
+        input_source: Input source file path or dictionary
+        knowledgeconfig: Optional knowledge configuration file path or dictionary
+        enable_human_feedback: Whether to enable human feedback
+        agent_feedback_config: Optional agent feedback configuration
+        feedback_handler: Optional feedback handler
+        env_file: Optional environment file path
+        api_key: Optional API key to replace in configs
 
     Returns:
-        Dictionary with the final results of the flow, or "feedback" if feedback is required
+        Union[Dict[str, Any], str]: The result of the flow execution
     """
     try:
         logger.info("Starting StructSense flow...")
@@ -692,8 +724,28 @@ def kickoff(
             load_dotenv()
             logger.info("Loaded environment variables from default .env")
 
+        # Set API key in environment if provided
+        if api_key:
+            os.environ["OPENROUTER_API_KEY"] = api_key
+            logger.info("Set OPENROUTER_API_KEY in environment")
+
         # Process input data
         processed_string = process_input_data(input_source)
+
+        # Load configs if they are file paths
+        if isinstance(agentconfig, str):
+            agentconfig = load_config(agentconfig, "agent")
+        if isinstance(taskconfig, str):
+            taskconfig = load_config(taskconfig, "task")
+        if isinstance(embedderconfig, str):
+            embedderconfig = load_config(embedderconfig, "embedder")
+        if isinstance(knowledgeconfig, str):
+            knowledgeconfig = load_config(knowledgeconfig, "knowledge")
+
+        # Replace API key if provided
+        if api_key:
+            agentconfig = replace_api_key(agentconfig, api_key)
+            embedderconfig = replace_api_key(embedderconfig, api_key)
 
         # Initialize and run the flow
         flow = StructSenseFlow(
