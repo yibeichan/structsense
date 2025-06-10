@@ -1189,3 +1189,72 @@ def replace_api_key(config: dict, api_key: str) -> dict:
     return config
 
 
+def transform_extracted_data(combined_result: Union[dict, list]) -> List[dict]:
+    """
+    Transform extracted data into a consistent format regardless of input structure.
+
+    Args:
+        combined_result: The raw extracted data which can be in various formats
+
+    Returns:
+        List of transformed terms in a consistent format
+    """
+    transformed_terms = []
+    if isinstance(combined_result, dict):
+        # Handle dictionary structure
+        if "extracted_structured_information" in combined_result:
+            data = combined_result["extracted_structured_information"]
+            if isinstance(data, dict) and "responses" in data:
+                # Handle responses array structure
+                for response in data["responses"]:
+                    if isinstance(response, dict):
+                        term = {
+                            "text": response.get("response_text", ""),
+                            "category": response.get("assigned_category", ""),
+                            "metadata": {
+                                "response_id": response.get("response_id", ""),
+                                "reason": response.get("reason", "")
+                            }
+                        }
+                        transformed_terms.append(term)
+            elif isinstance(data, list):
+                # Handle direct list of items
+                for item in data:
+                    if isinstance(item, dict):
+                        term = {
+                            "text": item.get("text", item.get("entity", "")),
+                            "category": item.get("category", item.get("label", "")),
+                            "metadata": {
+                                "response_id": item.get("response_id", ""),
+                                "reason": item.get("reason", ""),
+                                "sentence": item.get("sentence", []),
+                                "start": item.get("start", []),
+                                "end": item.get("end", []),
+                                "paper_location": item.get("paper_location", []),
+                                "paper_title": item.get("paper_title", ""),
+                                "doi": item.get("doi", "")
+                            }
+                        }
+                        transformed_terms.append(term)
+    elif isinstance(combined_result, list):
+        # Handle direct list structure
+        for item in combined_result:
+            if isinstance(item, dict):
+                term = {
+                    "text": item.get("text", item.get("entity", "")),
+                    "category": item.get("category", item.get("label", "")),
+                    "metadata": {
+                        "response_id": item.get("response_id", ""),
+                        "reason": item.get("reason", ""),
+                        "sentence": item.get("sentence", []),
+                        "start": item.get("start", []),
+                        "end": item.get("end", []),
+                        "paper_location": item.get("paper_location", []),
+                        "paper_title": item.get("paper_title", ""),
+                        "doi": item.get("doi", "")
+                    }
+                }
+                transformed_terms.append(term)
+
+    return transformed_terms
+

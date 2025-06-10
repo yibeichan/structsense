@@ -25,7 +25,13 @@ from utils.types import ExtractedTermsDynamic, AlignedTermsDynamic, JudgedTermsD
 from crew.dynamic_agent import DynamicAgent
 from crew.dynamic_agent_task import DynamicAgentTask
 from utils.ontology_knowedge_tool import OntologyKnowledgeTool
-from utils.utils import load_config, process_input_data, has_modifications
+from utils.utils import (
+    load_config,
+    process_input_data,
+    replace_api_key,
+    transform_extracted_data,
+    has_modifications
+)
 from utils.text_chunking import split_text_into_chunks, merge_chunk_results
 
 # Add new import for hardcoded configs
@@ -94,9 +100,6 @@ class StructSenseFlow(Flow):
             "current_step": None,
             "last_error": None
         }
-        # --- Dynamic chunking and extractor registration ---
-        self.chunks = split_text_into_chunks(self.source_text)
-        self._extractor_results = [None] * len(self.chunks)
 
     @start()
     def process_inputs(self):
@@ -142,12 +145,17 @@ class StructSenseFlow(Flow):
             try:
                 inputs = {"literature": chunk}
                 extractor_crew = self._create_crew_with_knowledge(extractor_agent, extractor_task)
+                print("@"*100)
+                print("@" * 100)
+                print(f"Extractor agent with chunk data {inputs}")
+                print("@" * 100)
+                print("@" * 100)
                 chunk_result = extractor_crew.kickoff(inputs=inputs)
                 elapsed = time.time() - chunk_start_time
                 if chunk_result:
                     logger.info(f"[Thread] Finished chunk {idx+1}/{total_chunks} in {elapsed:.2f}s, got {len(chunk_result.to_dict().get('terms', [])) if hasattr(chunk_result, 'to_dict') else 'unknown'} terms")
                     print("*" * 100)
-                    print(f"[Thread] Finished chunk {idx+1}/{total_chunks} in {elapsed:.2f}s, got {len(chunk_result.to_dict().get('terms', [])) if hasattr(chunk_result, 'to_dict') else 'unknown'} terms")
+                    print(f"[Thread] Finished chunk {idx+1}/{total_chunks} in {elapsed:.2f}s, got terms =  {chunk_result}")
                     print("#" * 100)
                     return chunk_result.to_dict()
                 else:
@@ -172,6 +180,8 @@ class StructSenseFlow(Flow):
                     if result:
                         chunk_results.append(result)
                         print("*" * 100)
+                        print(chunk_results)
+                        print("--" * 100)
                         print(f"[Main] Collected result {result} for chunk {i+1}/{total_chunks}")
                         print("*" * 100)
                         logger.info(f"[Main] Collected result for chunk {i+1}/{total_chunks}")
@@ -188,19 +198,18 @@ class StructSenseFlow(Flow):
             logger.warning("No results from any chunks")
             return None
 
-        logger.info("Merging results from all chunks...")
+        # Merge chunk results
         combined_result = merge_chunk_results(chunk_results)
-        print("$" * 100)
-        print(f"Merging complete. terms extracted: {combined_result}")
-        print("$" * 100)
-        logger.info(f"Merging complete. Total terms extracted: {len(combined_result.get('terms', []) )}")
-
-        # Update shared state and return results
-        self._update_shared_state("extracted_terms", combined_result)
+        
+        # Transform the data into the expected format for alignment
+        transformed_terms = transform_extracted_data(combined_result)
+        
+        # Update shared state with transformed terms
+        self._update_shared_state("extracted_terms", {"terms": transformed_terms})
         
         total_time = time.time() - start_time
-        logger.info(f"Extraction complete with {len(combined_result.get('terms', []))} terms in {total_time:.2f} seconds")
-        return combined_result
+        logger.info(f"Extraction complete with {len(transformed_terms)} terms in {total_time:.2f} seconds")
+        return {"terms": transformed_terms}
 
     def _setup_monitoring(self) -> None:
         """Set up monitoring tools if enabled."""
@@ -659,24 +668,26 @@ def kickoff(
         enable_human_feedback: bool = True,
         agent_feedback_config: Optional[Dict[str, bool]] = None,
         feedback_handler: Optional[ProgrammaticFeedbackHandler] = None,
-        env_file: Optional[str] = None
+        env_file: Optional[str] = None,
+        api_key: Optional[str] = None
 ) -> Union[Dict[str, Any], str]:
     """
-    Run the StructSense flow with the given configurations.
+    Kickoff the StructSense flow with the given configurations.
 
     Args:
-        agentconfig: Agent configuration file path or dict
-        taskconfig: Task configuration file path or dict
-        embedderconfig: Embedder configuration file path or dict
-        input_source: Input text source file path or direct text
-        knowledgeconfig: Optional knowledge configuration file path or dict
-        enable_human_feedback: Whether to enable human-in-the-loop functionality
-        agent_feedback_config: Optional dictionary mapping agent names to feedback enabled status
-        feedback_handler: Optional custom feedback handler for programmatic feedback
-        env_file: Optional path to an environment file to override the default .env file
+        agentconfig: Agent configuration file path or dictionary
+        taskconfig: Task configuration file path or dictionary
+        embedderconfig: Embedder configuration file path or dictionary
+        input_source: Input source file path or dictionary
+        knowledgeconfig: Optional knowledge configuration file path or dictionary
+        enable_human_feedback: Whether to enable human feedback
+        agent_feedback_config: Optional agent feedback configuration
+        feedback_handler: Optional feedback handler
+        env_file: Optional environment file path
+        api_key: Optional API key to replace in configs
 
     Returns:
-        Dictionary with the final results of the flow, or "feedback" if feedback is required
+        Union[Dict[str, Any], str]: The result of the flow execution
     """
     try:
         logger.info("Starting StructSense flow...")
@@ -713,8 +724,28 @@ def kickoff(
             load_dotenv()
             logger.info("Loaded environment variables from default .env")
 
+        # Set API key in environment if provided
+        if api_key:
+            os.environ["OPENROUTER_API_KEY"] = api_key
+            logger.info("Set OPENROUTER_API_KEY in environment")
+
         # Process input data
         processed_string = process_input_data(input_source)
+
+        # Load configs if they are file paths
+        if isinstance(agentconfig, str):
+            agentconfig = load_config(agentconfig, "agent")
+        if isinstance(taskconfig, str):
+            taskconfig = load_config(taskconfig, "task")
+        if isinstance(embedderconfig, str):
+            embedderconfig = load_config(embedderconfig, "embedder")
+        if isinstance(knowledgeconfig, str):
+            knowledgeconfig = load_config(knowledgeconfig, "knowledge")
+
+        # Replace API key if provided
+        if api_key:
+            agentconfig = replace_api_key(agentconfig, api_key)
+            embedderconfig = replace_api_key(embedderconfig, api_key)
 
         # Initialize and run the flow
         flow = StructSenseFlow(
