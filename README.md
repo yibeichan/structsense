@@ -28,13 +28,15 @@ The below is the architecture of the `StructSense`.
 ## 🧠 Example Use Cases
 - Entity and relation extraction from text
   - Knowledge graph construction
+## 📁 Examples
 
-## 📁Examples
+- Explore the [`example`](example) directory for usage examples and reference configurations.
 
--  [`Using openrouter/`](./example/ner_example) 
-  - You need the openrouter API key unless you are using ollama.
-- [`Using Ollama`](./example/ner_example_ollama) 
-  - Install ollama and pull the models which you intend to use. This example uses `deepseek-r1:14b` model. You can get it from ollama by running `ollama pull deepseek-r1:14b` command. If you want to use different models, e.g., `llama3.2:latest`, you need to pull it similar to `deepseek-r1:14b`. Make sure that ollama is running. You can run ollama using `ollama serve`.
+## 📄 Blank Configuration Template
+
+- Refer to the [`config_template`](config_template) directory for a blank configuration template.  
+  Before using it, make sure to read the detailed explanation of the configuration template provided in the sections below (`Configuration Template`).
+
 ---
 ## 📄 Requirements
 ### 📄 PDF Extraction Configuration
@@ -175,11 +177,109 @@ ENABLE_MLFLOW=false
 ENABLE_KG_SOURCE=false  
 ```
 ---
+### 📄 Configuration Template
 
-### 📄 YAML Configuration
+A blank configuration template is available in the [config_template](config_template) directory.
 
+Please follow the guidelines below when updating the configuration:
 
-## In progress
-- [X] [`More examples (e.g., using ollama)`](example/ner_example_ollama)
-- [ ] Validations (e.g., benchmarking)
-- [X] Human feedback component.
+---
+
+#### ⚠️ Important Notes
+
+- **Do not rename** predefined YAML keys such as `task_config` and `agent_config`.  
+  Only update the following:
+  - Agent descriptions
+  - Task descriptions
+  - Embedding configurations
+  - Knowledge configurations
+
+- **Do not replace variables** enclosed in curly braces (`{}`); they are dynamically populated at runtime:
+  - `{literature}`: Input text, e.g., extracted PDF content
+  - `{extracted_structured_information}`: Output from the extractor agent
+  - `{aligned_structured_information}`: Output from the alignment agent
+  - `{judged_structured_information_with_human_feedback}`: Output from the judge agent
+  - `{modification_context}` and `{user_feedback_text}`: User feedback used by the feedback agent
+
+---
+
+### 🧠 Agent Configuration
+
+The following agents should not be renamed or removed:
+- `extractor_agent`
+- `alignment_agent`
+- `judge_agent`
+- `humanfeedback_agent`
+
+Each agent should be configured with the following fields: `role`, `goal`, `backstory`, and `llm`.
+
+For best practices, refer to the [Crew AI Core Principles of Effective Agent Design](https://docs.crewai.com/guides/agents/crafting-effective-agents#core-principles-of-effective-agent-design).
+
+```yaml
+agent_config:
+  extractor_agent:
+    role: >
+      agent role
+    goal: >
+      goal
+    backstory: >
+      agent backstory
+    llm:
+      model: openrouter/openai/gpt-4o-mini
+      base_url: https://openrouter.ai/api/v1
+
+  alignment_agent:
+    ...
+```
+### 🧾 Task Configuration
+
+Each task corresponds to a specific agent and must not be renamed:
+
+- `extraction_task`
+- `alignment_task`
+- `judge_task`
+- `humanfeedback_task`
+
+Each task should include:
+
+- **`description`**:  
+  A detailed explanation of the task, including the required input (e.g., `{literature}` for extraction, `{extracted_structured_information}` for alignment, etc.).
+
+- **`expected_output`**:  
+  The expected output format. The format must be JSON. You may specify the structure or give an example.
+
+- **`agent_id`**:  
+  This key assigns the task to its corresponding agent. The value must match the agent ID defined under `agent_config`.
+
+Example:
+```yaml
+task_config:
+  extraction_task:
+    description: >
+      Extract structured information from the given literature.
+      Input: {literature}
+    expected_output: >
+      Format: JSON  
+      Example: {"entities": [...], "relations": [...]}
+    agent_id: extractor_agent
+```
+To learn more about the tasks, see [Crafting Effective Tasks for Your Agents](https://docs.crewai.com/guides/agents/crafting-effective-agents#crafting-effective-tasks-for-your-agents).
+### 👤 Human-in-the-Loop Configuration
+Controls whether the human feedback loop is enabled.
+```yaml
+# Human-in-the-loop configuration
+human_in_loop_config:
+  humanfeedback_agent: true
+```
+### 🧬 Embedding Configuration
+Defines the configuration for the embedding model used in the system.
+```yaml
+embedder_config:
+  provider: ollama
+  config:
+    api_base: http://localhost:11434
+    model: nomic-embed-text:latest
+```
+
+### License
+[Apache License Version 2.0](LICENSE.txt)
