@@ -1,0 +1,378 @@
+#agent config
+# Do not introduce any new variable name
+# the variables inside {} receives data from the previous agent. the {literature} variable is the one that passes the
+# initial input.
+agent_config:
+  extractor_agent:
+    role: >
+      Survey content extraction specialist
+    goal: >
+      Analyze the input PDF of a questionnaire and extract all relevant ReproSchema-compatible information, including question text, response options, item types, conditional logic, language(s), and any embedded scoring instructions or metadata.
+    backstory: >
+      You are a survey data specialist with deep familiarity in structured questionnaire representation, particularly the ReproSchema standard. You excel at parsing semi-structured documents and translating them into machine-actionable formats to support FAIR-aligned schema creation.
+    llm:
+      model: openrouter/openai/gpt-4o-mini
+      base_url: https://openrouter.ai/api/v1
+
+  alignment_agent:
+    role: >
+      Schema generation and alignment engineer
+    goal: >
+      Transform the structured extraction output into a ReproSchema-compliant representation, including proper construction of the 'activities', 'items', and 'activity_schema' folders in JSON-LD format, ensuring semantic and structural correctness.
+    backstory: >
+      You are a ReproSchema engineering expert who converts raw extracted data into compliant JSON-LD files. You are fluent in LinkML, understand the protocol > activity > item nesting structure, and can apply controlled vocabularies, conditional logic, and multilingual mappings to each item.
+    llm:
+      model: openrouter/openai/gpt-4o-mini
+      base_url: https://openrouter.ai/api/v1
+
+  judge_agent:
+    role: >
+      Quality assurance and schema verification agent
+    goal: >
+      Validate whether the generated ReproSchema output accurately reflects the content and intent of the original questionnaire. Ensure that all extracted items are present, semantically correct, and properly structured according to ReproSchema expectations.
+    backstory: >
+      You are a QA analyst specializing in structured survey data. You compare original PDF content against the final schema, checking for omissions, misalignments, or structural inconsistencies. You ensure adherence to FAIR principles, correct metadata, and traceable provenance.
+    llm:
+      model: openrouter/openai/gpt-4o-mini
+      base_url: https://openrouter.ai/api/v1
+
+  humanfeedback_agent:
+    role: >
+      Human-in-the-loop schema refinement agent
+    goal: >
+      Support structured schema revision based on human feedback. Clarify, update, or restructure the ReproSchema output to reflect reviewer insights and correct interpretation errors.
+    backstory: >
+      You collaborate with human annotators to incorporate their expert feedback into the schema. You assist in improving alignment with ontology mappings, user-specific conventions, and domain constraints while maintaining ReproSchema integrity.
+    llm:
+      model: openrouter/openai/gpt-4o-mini
+      base_url: https://openrouter.ai/api/v1
+
+# agent task config
+task_config:
+  extraction_task:
+    description: >
+      Task: Extract survey elements from a questionnaire PDF.
+
+      Input: {literature}
+
+      Instructions:
+      - Parse the questionnaire for all items, including their text, response options, response types (e.g., Likert, open text, numeric), and metadata such as language and scoring.
+      - If available, identify conditional logic, item grouping, or multimedia components (e.g., images/audio).
+      - Output should use clean structured JSON that can serve as input for schema generation.
+    
+    expected_output: >
+      Output format: JSON
+      Example output:
+      {
+        "items": [
+          {
+            "id": "q1",
+            "question": "Over the past two weeks, how often have you felt down, depressed, or hopeless?",
+            "response_type": "likert_5",
+            "options": ["Not at all", "Several days", "More than half the days", "Nearly every day"],
+            "language": "en",
+            "scoring": {"Not at all": 0, "Several days": 1, "More than half the days": 2, "Nearly every day": 3}
+          },
+          ...
+        ],
+        "metadata": {
+          "title": "PHQ-9",
+          "languages": ["en"],
+          "notes": "Includes standard DSM-5 depression items"
+        }
+      }
+
+    agent_id: extractor_agent
+
+  alignment_task:
+    description: >
+      Task: Generate ReproSchema-compatible structure from extracted information.
+
+      Inputs: {extracted_structured_information}
+
+      Instructions:
+      - Use the structured extraction to generate a compliant ReproSchema JSON-LD folder structure.
+      - Create the following components:
+        - `items/`: Each individual question as an `item.jsonld`
+        - `activities/`: A composite `activity.jsonld` that references the items
+        - `activity_schema.jsonld`: Validation and UI configuration
+      - #agent config
+# Do not introduce any new variable name
+# the variables inside {} receives data from the previous agent. the {literature} variable is the one that passes the
+# initial input.
+agent_config:
+  extractor_agent:
+    role: >
+      Survey content extraction specialist
+    goal: >
+      Analyze the input PDF of a questionnaire and extract all relevant ReproSchema-compatible information, including question text, response options, item types, conditional logic, language(s), and any embedded scoring instructions or metadata.
+    backstory: >
+      You are a survey data specialist with deep familiarity in structured questionnaire representation, particularly the ReproSchema standard. You excel at parsing semi-structured documents and translating them into machine-actionable formats to support FAIR-aligned schema creation.
+    llm:
+      model: openrouter/openai/gpt-4o-mini
+      base_url: https://openrouter.ai/api/v1
+
+  alignment_agent:
+    role: >
+      Schema generation and alignment engineer
+    goal: >
+      Transform the structured extraction output into a ReproSchema-compliant representation, including proper construction of the 'activities', 'items', and 'activity_schema' folders in JSON-LD format, ensuring semantic and structural correctness.
+    backstory: >
+      You are a ReproSchema engineering expert who converts raw extracted data into compliant JSON-LD files. You are fluent in LinkML, understand the protocol > activity > item nesting structure, and can apply controlled vocabularies, conditional logic, and multilingual mappings to each item.
+    llm:
+      model: openrouter/openai/gpt-4o-mini
+      base_url: https://openrouter.ai/api/v1
+
+  judge_agent:
+    role: >
+      Quality assurance and schema verification agent
+    goal: >
+      Validate whether the generated ReproSchema output accurately reflects the content and intent of the original questionnaire. Ensure that all extracted items are present, semantically correct, and properly structured according to ReproSchema expectations.
+    backstory: >
+      You are a QA analyst specializing in structured survey data. You compare original PDF content against the final schema, checking for omissions, misalignments, or structural inconsistencies. You ensure adherence to FAIR principles, correct metadata, and traceable provenance.
+    llm:
+      model: openrouter/openai/gpt-4o-mini
+      base_url: https://openrouter.ai/api/v1
+
+  humanfeedback_agent:
+    role: >
+      Human-in-the-loop schema refinement agent
+    goal: >
+      Support structured schema revision based on human feedback. Clarify, update, or restructure the ReproSchema output to reflect reviewer insights and correct interpretation errors.
+    backstory: >
+      You collaborate with human annotators to incorporate their expert feedback into the schema. You assist in improving alignment with ontology mappings, user-specific conventions, and domain constraints while maintaining ReproSchema integrity.
+    llm:
+      model: openrouter/openai/gpt-4o-mini
+      base_url: https://openrouter.ai/api/v1
+
+# agent task config
+task_config:
+  extraction_task:
+    description: >
+      Task: Extract survey elements from a questionnaire PDF.
+
+      Input: {literature}
+
+      Instructions:
+      - Parse the questionnaire for all items, including their text, response options, response types (e.g., Likert, open text, numeric), and metadata such as language and scoring.
+      - If available, identify conditional logic, item grouping, or multimedia components (e.g., images/audio).
+      - Output should use clean structured JSON that can serve as input for schema generation.
+    
+    expected_output: >
+      Output format: JSON
+      Example output:
+      {
+        "items": [
+          {
+            "id": "q1",
+            "question": "Over the past two weeks, how often have you felt down, depressed, or hopeless?",
+            "response_type": "likert_5",
+            "options": ["Not at all", "Several days", "More than half the days", "Nearly every day"],
+            "language": "en",
+            "scoring": {"Not at all": 0, "Several days": 1, "More than half the days": 2, "Nearly every day": 3}
+          },
+          ...
+        ],
+        "metadata": {
+          "title": "PHQ-9",
+          "languages": ["en"],
+          "notes": "Includes standard DSM-5 depression items"
+        }
+      }
+
+    agent_id: extractor_agent
+
+  alignment_task:
+    description: >
+      Task: Generate ReproSchema-compatible structure from extracted information.
+
+      Inputs: {extracted_structured_information}
+
+      Instructions:
+      - Use the structured extraction to generate a compliant ReproSchema JSON-LD folder structure.
+      - Create the following components:
+        - `items/`: Each individual question as an `item.jsonld`
+        - `activities/`: A composite `activity.jsonld` that references the items
+        - `activity_schema.jsonld`: Validation and UI configuration
+      - Ensure correct use of `@id`, `@type`, `skos:prefLabel`, `ui:order`, response options, scoring logic, and multilingual fields.
+    
+    expected_output: >
+      Output format: structured directory layout with separate JSON-LD files.
+
+      Example output:
+      ├── activities/
+      │   └── phq9_activity.jsonld
+      ├── items/
+      │   ├── q1.jsonld
+      │   ├── q2.jsonld
+      │   └── ...
+      └── activity_schema.jsonld
+
+      Each file should follow ReproSchema JSON-LD conventions, including proper use of:
+      - `@context`, `@id`, `@type`
+      - multilingual labels (`skos:prefLabel`)
+      - item-level logic (e.g., `responseOptions`, `branchLogic`, `ui:inputType`)
+      - references between activities and items
+
+    agent_id: alignment_agent
+
+  judge_task:
+    description: >
+      Task: Evaluate the quality and fidelity of the generated ReproSchema files.
+
+      Inputs: {aligned_structured_information}
+
+      Instructions:
+      - Cross-reference the ReproSchema output against the original PDF (provided via {literature}).
+      - Identify mismatches in question wording, missing items, response scale inconsistencies, or metadata errors.
+      - Flag issues and summarize schema quality on fidelity, completeness, and schema compliance.
+    
+    expected_output: >
+      Output format: JSON
+      Example output:
+      {
+        "issues": [
+          {"item_id": "q3", "issue": "Response options do not match source PDF"},
+          {"item_id": "q7", "issue": "Item text is truncated"}
+        ],
+        "overall_score": 7.5,
+        "fidelity_summary": "Most items are accurately captured, but 3 questions show mismatch in branching logic or wording."
+      }
+
+    agent_id: judge_agent
+
+  humanfeedback_task:
+    description: >
+      Input: {judged_structured_information_with_human_feedback} 
+  
+      Objective: Evaluate and, if necessary, revise the structured output to ensure accurate alignment with the target ontology/schema.
+
+      modification_context: 
+        {modification_context}
+      
+      user_feedback_text:
+        {user_feedback_text}
+      
+      Instructions:
+        Alignment Assessment:
+        Analyze {judged_structured_information_with_human_feedback} to determine whether the extracted terms and structures are correctly aligned with the intended ontology or schema.
+  
+    expected_output: > 
+      output format: json
+      Example output: addd example
+
+    agent_id: humanfeedback_agent
+
+# embedding config
+# see for more details and parameters for config
+# https://docs.crewai.com/concepts/memory#additional-embedding-providerscl
+embedder_config:
+  provider: ollama
+  config:
+    api_base: http://localhost:11434
+    model: nomic-embed-text:latest
+
+# knowledge search config
+knowledge_config:
+  search_key: #local vector database
+    - entity
+    - label
+# human in loop config
+human_in_loop_config:
+  humanfeedback_agent: true
+    expected_output: >
+      Output format: structured directory layout with separate JSON-LD files.
+
+      Example output:
+      ├── activities/
+      │   └── phq9_activity.jsonld
+      ├── items/
+      │   ├── q1.jsonld
+      │   ├── q2.jsonld
+      │   └── ...
+      └── activity_schema.jsonld
+
+      Each file should follow ReproSchema JSON-LD conventions, including proper use of:
+      - `@context`, `@id`, `@type`
+      - multilingual labels (`skos:prefLabel`)
+      - item-level logic (e.g., `responseOptions`, `branchLogic`, `ui:inputType`)
+      - references between activities and items
+
+    agent_id: alignment_agent
+
+  judge_task:
+    description: >
+      Task: Evaluate the quality and fidelity of the generated ReproSchema files.
+
+      Inputs: {aligned_structured_information}
+
+      Instructions:
+      - Cross-reference the ReproSchema output against the original PDF (provided via {literature}).
+      - Identify mismatches in question wording, missing items, response scale inconsistencies, or metadata errors.
+      - Flag issues and summarize schema quality on fidelity, completeness, and schema compliance.
+    
+    expected_output: >
+      Output format: JSON
+      Example output:
+      {
+        "issues": [
+          {"item_id": "q3", "issue": "Response options do not match source PDF"},
+          {"item_id": "q7", "issue": "Item text is truncated"}
+        ],
+        "overall_score": 7.5,
+        "fidelity_summary": "Most items are accurately captured, but 3 questions show mismatch in branching logic or wording."
+      }
+
+    agent_id: judge_agent
+
+  humanfeedback_task:
+    description: >
+      Input: {judged_structured_information_with_human_feedback} 
+  
+      Objective: Evaluate and, if necessary, revise the structured output to ensure accurate alignment with the target ontology/schema.
+
+      modification_context: 
+        {modification_context}
+      
+      user_feedback_text:
+        {user_feedback_text}
+      
+      Instructions:
+        Alignment Assessment:
+        Analyze {judged_structured_information_with_human_feedback} to determine whether the extracted terms and structures are correctly aligned with the intended ontology or schema.
+  
+    expected_output: >
+      Output format: structured directory layout with updated JSON-LD files (if revisions are necessary), alongside a summary of changes.
+
+      Example output:
+      {
+        "revised_files": {
+          "items/q3.jsonld": {
+            "change": "Corrected response option order based on reviewer feedback"
+          },
+          "activity_schema.jsonld": {
+            "change": "Added UI hint for multilingual switcher"
+          }
+        },
+        "summary": "2 schema components were updated based on human feedback. Item q3's response scale was reordered and the activity schema was enhanced for language support."
+      }
+
+    agent_id: humanfeedback_agent
+
+# embedding config
+# see for more details and parameters for config
+# https://docs.crewai.com/concepts/memory#additional-embedding-providerscl
+embedder_config:
+  provider: ollama
+  config:
+    api_base: http://localhost:11434
+    model: nomic-embed-text:latest
+
+# knowledge search config
+knowledge_config:
+  search_key: #local vector database
+    - entity
+    - label
+# human in loop config
+human_in_loop_config:
+  humanfeedback_agent: true
