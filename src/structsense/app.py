@@ -14,6 +14,7 @@ import warnings
 warnings.filterwarnings("ignore")
 import json
 from crewai import Crew
+from crewai.utilities.paths import db_storage_path
 from crewai.flow.flow import Flow, listen, start, or_
 from crewai.knowledge.source.string_knowledge_source import StringKnowledgeSource
 from crewai.memory import EntityMemory, LongTermMemory, ShortTermMemory
@@ -71,7 +72,7 @@ class StructSenseFlow(Flow):
             env_file: Optional[str] = None
     ):
         super().__init__()
-        logger.info(f"Initializing StructSenseFlow")
+        logger.info(f"Initializing StructSenseFlow with source: {source_text}")
         self.source_text = source_text
         self.enable_human_feedback = enable_human_feedback
         self.human = HumanInTheLoop(
@@ -234,8 +235,19 @@ class StructSenseFlow(Flow):
     def _initialize_memory(self) -> None:
         """Initialize memory storage systems for the flow."""
         try:
-            memory_path = Path("crew_memory")
-            memory_path.mkdir(exist_ok=True)
+            memory_path = Path(os.getcwd()) / "crew_memory"
+            os.environ["CREWAI_STORAGE_DIR"] = str(memory_path)
+            storage_path = db_storage_path()
+            
+            # Debug storage path
+            logger.info(f"Storage path: {storage_path}")
+            logger.info(f"Path exists: {os.path.exists(storage_path)}")
+            logger.info(f"Is writable: {os.access(storage_path, os.W_OK) if os.path.exists(storage_path) else 'Path does not exist'}")
+
+            # Create with proper permissions
+            if not os.path.exists(storage_path):
+                os.makedirs(storage_path, mode=0o755, exist_ok=True)
+                logger.info(f"Created storage directory: {storage_path}")
 
             # DEBUG: Print embedder_config before passing to RAGStorage
             print("DEBUG: embedder_config for RAGStorage:", self.embedder_config)
@@ -250,12 +262,14 @@ class StructSenseFlow(Flow):
             rag_storage_config = {
                 "embedder_config": embedder_config_for_rag,
                 "type": "short_term",
-                "path": str(memory_path),
+                "path": str(storage_path),
             }
+
+            long_term_storage = f"{storage_path}/long_term_memory_storage.db"
 
             # Initialize memory components
             self.long_term_memory = LongTermMemory(
-                storage=LTMSQLiteStorage(db_path=str(memory_path / "long_term_memory_storage.db"))
+                storage=LTMSQLiteStorage(db_path=str(long_term_storage))
             )
             self.short_term_memory = ShortTermMemory(
                 storage=RAGStorage(**rag_storage_config)
