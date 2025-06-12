@@ -34,6 +34,7 @@ from dotenv import load_dotenv
 from weaviate.classes.config import Property, DataType, Configure, VectorDistances
 from GrobidArticleExtractor import GrobidArticleExtractor
 import requests
+import pandas as pd
 from requests.exceptions import RequestException
 
 
@@ -62,10 +63,11 @@ def process_input_data(source:str):
         # Log all paths being tried
         logger.info(f"Trying paths: {[str(p) for p in paths_to_try]}")
 
+
         # Check if this is raw text input
         is_raw_text = (
             # do not contains any extensions like .pdf
-                (not source.lower().endswith(".pdf")) or
+                (not source.lower().endswith((".pdf", ".csv", ".txt"))) or
                 # If it's a very long string, treat as raw text
                 len(source) > 500 or
                 # Or if it contains newlines
@@ -108,14 +110,35 @@ def process_input_data(source:str):
         # Process single file
     if source_path.is_file():
         logger.info(f"Processing single file: {source_path}")
-        GROBID_SERVER_URL_OR_EXTERNAL_SERVICE = os.getenv("GROBID_SERVER_URL_OR_EXTERNAL_SERVICE",
-                                                          "http://localhost:8070")
-        EXTERNAL_PDF_EXTRACTION_SERVICE = os.getenv("EXTERNAL_PDF_EXTRACTION_SERVICE", "False")
-        return extract_pdf_content(
-            file_path=source_path,
-            grobid_server=GROBID_SERVER_URL_OR_EXTERNAL_SERVICE,
-            external_service=EXTERNAL_PDF_EXTRACTION_SERVICE
-        )
+        ext = source_path.suffix.lower()
+        if ext ==".pdf":
+            GROBID_SERVER_URL_OR_EXTERNAL_SERVICE = os.getenv("GROBID_SERVER_URL_OR_EXTERNAL_SERVICE",
+                                                              "http://localhost:8070")
+            EXTERNAL_PDF_EXTRACTION_SERVICE = os.getenv("EXTERNAL_PDF_EXTRACTION_SERVICE", "False")
+            return extract_pdf_content(
+                file_path=source_path,
+                grobid_server=GROBID_SERVER_URL_OR_EXTERNAL_SERVICE,
+                external_service=EXTERNAL_PDF_EXTRACTION_SERVICE
+            )
+        elif ext == ".csv":
+            try:
+                df = pd.read_csv(source_path)
+                return df.to_dict(orient="records")
+            except Exception as e:
+                logger.error(f"Error reading CSV file: {e}")
+                return {"status": "Error", "error": str(e)}
+        elif ext == ".txt":
+            try:
+                with open(source_path, "r", encoding="utf-8") as f:
+                    return f.read()
+            except Exception as e:
+                logger.error(f"Error reading TXT file: {e}")
+                return {"status": "Error", "error": str(e)}
+        else:
+            error_msg = f"Unsupported file format: {ext}"
+            logger.error(error_msg)
+            return {"status": "Error", "error": error_msg}
+
 
 def extract_pdf_content(file_path: str, grobid_server: str , external_service: str ) -> dict:
     """
