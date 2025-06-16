@@ -7,17 +7,14 @@ services:
       - "11434:11434"
     volumes:
       - ollama_models:/root/.ollama
-    environment:
-      - OLLAMA_MODELS=nomic-embed-text,ollama run deepseek-r1:7b
     entrypoint: >
       sh -c "
       ollama serve & 
       sleep 5 &&
       ollama pull nomic-embed-text &&
-      ollama pull deepseek-coder:instruct &&
+      ollama pull deepseek-r1:7b &&
       tail -f /dev/null
       "
 
 volumes:
   ollama_models:
-
