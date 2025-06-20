@@ -1,39 +1,38 @@
+import concurrent.futures
 import logging
 import os
-import sys
-import tracemalloc
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Dict, Optional, Tuple, Union, Any, Callable, List
 import time
-import concurrent.futures
+import tracemalloc
 
 # Filter warnings at the beginning
 import warnings
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple, Union
 
 warnings.filterwarnings("ignore")
-import json
 from crewai import Crew
-from crewai.utilities.paths import db_storage_path
-from crewai.flow.flow import Flow, listen, start, or_
+from crewai.flow.flow import Flow, listen, start
 from crewai.knowledge.source.string_knowledge_source import StringKnowledgeSource
 from crewai.memory import EntityMemory, LongTermMemory, ShortTermMemory
 from crewai.memory.storage.ltm_sqlite_storage import LTMSQLiteStorage
 from crewai.memory.storage.rag_storage import RAGStorage
+from crewai.utilities.paths import db_storage_path
 from dotenv import load_dotenv
-from .humanloop import HumanInTheLoop, ProgrammaticFeedbackHandler
-from utils.types import ExtractedTermsDynamic, AlignedTermsDynamic, JudgedTermsDynamic
+
 from crew.dynamic_agent import DynamicAgent
 from crew.dynamic_agent_task import DynamicAgentTask
 from utils.ontology_knowedge_tool import OntologyKnowledgeTool
+from utils.text_chunking import split_text_into_chunks
+from utils.types import AlignedTermsDynamic, ExtractedTermsDynamic, JudgedTermsDynamic
 from utils.utils import (
+    has_modifications,
     load_config,
+    merge_dicts_preserve_structure,
     process_input_data,
     replace_api_key,
-    transform_extracted_data,
-    has_modifications
 )
-from utils.text_chunking import split_text_into_chunks, merge_chunk_results
+
+from .humanloop import HumanInTheLoop, ProgrammaticFeedbackHandler
 
 # Add new import for hardcoded configs
 # from .default_config_sie_ner import get_agent_config, NER_TASK_CONFIG, EMBEDDER_CONFIG, HUMAN_IN_LOOP_CONFIG, SEARCH_ONTOLOGY_KNOWLEDGE_CONFIG
@@ -55,8 +54,7 @@ class ConfigError(Exception):
 
 
 class StructSenseFlow(Flow):
-    """
-    A workflow for structured information extraction, alignment, and judgment using CrewAI.
+    """A workflow for structured information extraction, alignment, and judgment using CrewAI.
     Includes improved crew communication and shared memory.
     """
 
@@ -80,14 +78,14 @@ class StructSenseFlow(Flow):
             agent_feedback_config=agent_feedback_config
         )
         try:
-            self.agent_config = load_config(agent_config, "agent")
-            self.task_config = load_config(task_config, "task")
-            self.embedder_config = load_config(embedder_config, "embedder")
+            self.agent_config = load_config(agent_config, "agent_config")
+            self.task_config = load_config(task_config, "task_config")
+            self.embedder_config = load_config(embedder_config, "embedder_config")
             if knowledge_config is None:
                 os.environ["ENABLE_KG_SOURCE"] = "false"
                 self.knowledge_config = {"search_key": {}}
             else:
-                self.knowledge_config = load_config(knowledge_config, "knowledge")
+                self.knowledge_config = load_config(knowledge_config, "knowledge_config")
         except Exception as e:
             logger.error(f"Configuration loading failed: {e}")
             raise ConfigError(f"Failed to load configurations: {str(e)}")
@@ -108,7 +106,6 @@ class StructSenseFlow(Flow):
         logger.info("Starting structured information processing flow")
         self._update_shared_state("process_inputs", self.source_text)
 
-
     @listen(process_inputs)
     async def extracted_structured_information(self):
         """Extract structured information from the source text."""
@@ -128,89 +125,31 @@ class StructSenseFlow(Flow):
 
         agent_name = "extractor_agent"
 
-        # Split text into chunks for parallel processing
-        logger.info("Splitting text into chunks for parallel processing...")
-        chunks = split_text_into_chunks(self.source_text)
-        logger.info(f"Split text into {len(chunks)} chunks for parallel processing")
-        logger.debug(f"Chunk sizes: {[len(chunk) for chunk in chunks]}")
+        # ************************************************************************
+        # No chunking
+        # ************************************************************************
+        inputs = {"literature": self.source_text}
+        extractor_crew = self._create_crew_with_knowledge(extractor_agent, extractor_task)
+        extractor_result = extractor_crew.kickoff(inputs=inputs)
 
-        chunk_results = []
-        total_chunks = len(chunks)
+        print("="*100)
+        print("Extractor Result:")
+        print(extractor_result)
+        print("="*100)
 
-        def process_chunk(chunk, idx):
-            print("*"*100)
-            print(f"[Thread] Starting processing for chunk {idx+1}/{total_chunks} (size: {len(chunk)} chars)")
-            print("#"*100)
-            logger.info(f"[Thread] Starting processing for chunk {idx+1}/{total_chunks} (size: {len(chunk)} chars)")
-            chunk_start_time = time.time()
-            try:
-                inputs = {"literature": chunk}
-                extractor_crew = self._create_crew_with_knowledge(extractor_agent, extractor_task)
-                print("@"*100)
-                print("@" * 100)
-                print(f"Extractor agent with chunk data {inputs}")
-                print("@" * 100)
-                print("@" * 100)
-                chunk_result = extractor_crew.kickoff(inputs=inputs)
-                elapsed = time.time() - chunk_start_time
-                if chunk_result:
-                    logger.info(f"[Thread] Finished chunk {idx+1}/{total_chunks} in {elapsed:.2f}s, got {len(chunk_result.to_dict().get('terms', [])) if hasattr(chunk_result, 'to_dict') else 'unknown'} terms")
-                    print("*" * 100)
-                    print(f"[Thread] Finished chunk {idx+1}/{total_chunks} in {elapsed:.2f}s, got terms =  {chunk_result}")
-                    print("#" * 100)
-                    return chunk_result.to_dict()
-                else:
-                    print("*" * 100)
-                    print(f"[Thread] No result for chunk {idx + 1}/{total_chunks} (took {elapsed:.2f}s)")
-                    print("#" * 100)
-                    logger.warning(f"[Thread] No result for chunk {idx+1}/{total_chunks} (took {elapsed:.2f}s)")
-                    return None
-            except Exception as exc:
-                logger.error(f"[Thread] Exception in chunk {idx+1}/{total_chunks}: {exc}")
-                return None
-
-        logger.info(f"Processing {total_chunks} chunks in parallel using ThreadPoolExecutor...")
-        print("*" * 100)
-        print("#" * 100)
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = {executor.submit(process_chunk, chunk, i): i for i, chunk in enumerate(chunks)}
-            for future in concurrent.futures.as_completed(futures):
-                i = futures[future]
-                try:
-                    result = future.result()
-                    if result:
-                        chunk_results.append(result)
-                        print("*" * 100)
-                        print(chunk_results)
-                        print("--" * 100)
-                        print(f"[Main] Collected result {result} for chunk {i+1}/{total_chunks}")
-                        print("*" * 100)
-                        logger.info(f"[Main] Collected result for chunk {i+1}/{total_chunks}")
-                    else:
-                        logger.warning(f"[Main] No result for chunk {i+1}/{total_chunks}")
-                except Exception as exc:
-                    logger.error(f"[Main] Exception collecting chunk {i+1}/{total_chunks}: {exc}")
-
-        print("*" * 100)
-        print(f"All chunks processed. {(chunk_results)} out of {total_chunks} returned results.")
-        logger.info(f"All chunks processed. {len(chunk_results)} out of {total_chunks} returned results.")
-        print("$*" * 100)
-        if not chunk_results:
-            logger.warning("No results from any chunks")
+        if not extractor_result:
+            logger.warning("Extractor crew returned no results")
             return None
 
-        # Merge chunk results
-        combined_result = merge_chunk_results(chunk_results)
-        
-        # Transform the data into the expected format for alignment
-        transformed_terms = transform_extracted_data(combined_result)
-        
-        # Update shared state with transformed terms
-        self._update_shared_state("extracted_terms", {"terms": transformed_terms})
-        
-        total_time = time.time() - start_time
-        logger.info(f"Extraction complete with {len(transformed_terms)} terms in {total_time:.2f} seconds")
-        return {"terms": transformed_terms}
+        result_dict = extractor_result.to_dict()
+        print("="*100)
+        print("Extractor Result Dict:")
+        print(result_dict)
+        print("="*100)
+
+        self._update_shared_state("extracted_terms", result_dict)
+        logger.info(f"Extraction complete with {len(result_dict.get('terms', []))} terms")
+        return result_dict
 
     def _setup_monitoring(self) -> None:
         """Set up monitoring tools if enabled."""
@@ -238,11 +177,12 @@ class StructSenseFlow(Flow):
             memory_path = Path(os.getcwd()) / "crew_memory"
             os.environ["CREWAI_STORAGE_DIR"] = str(memory_path)
             storage_path = db_storage_path()
-            
+
             # Debug storage path
             logger.info(f"Storage path: {storage_path}")
             logger.info(f"Path exists: {os.path.exists(storage_path)}")
-            logger.info(f"Is writable: {os.access(storage_path, os.W_OK) if os.path.exists(storage_path) else 'Path does not exist'}")
+            logger.info(
+                f"Is writable: {os.access(storage_path, os.W_OK) if os.path.exists(storage_path) else 'Path does not exist'}")
 
             # Create with proper permissions
             if not os.path.exists(storage_path):
@@ -291,8 +231,7 @@ class StructSenseFlow(Flow):
             task_key: str,
             pydantic_output_class
     ) -> Tuple[Optional[object], Optional[object]]:
-        """
-        Initialize an agent and its associated task.
+        """Initialize an agent and its associated task.
 
         Args:
             agent_key: Key for the agent in agent configuration
@@ -303,6 +242,10 @@ class StructSenseFlow(Flow):
             Tuple containing the initialized agent and task
         """
         try:
+            print(f"[DEBUG] agent_key: {agent_key}")
+            print(f"[DEBUG] task_key: {task_key}")
+            print(f"[DEBUG] agent_config for {agent_key}: {self.agent_config.get(agent_key)}")
+            print(f"[DEBUG] task_config for {task_key}: {self.task_config.get(task_key)}")
             agent_init = DynamicAgent(
                 agents_config=self.agent_config[agent_key],
                 embedder_config=self.embedder_config
@@ -335,8 +278,7 @@ class StructSenseFlow(Flow):
             task,
             data_for_knowledge_tool: Optional[Dict] = None
     ) -> Crew:
-        """
-        Create a Crew instance with or without knowledge sources based on configuration.
+        """Create a Crew instance with or without knowledge sources based on configuration.
 
         Args:
             agent: The agent to use in the crew
@@ -394,20 +336,29 @@ class StructSenseFlow(Flow):
         """Get value from shared state"""
         return self.shared_state.get(key)
 
-    @start()
-    def process_inputs(self):
-        """Start processing the input data."""
-        logger.info("Starting structured information processing flow")
-        self._update_shared_state("process_inputs", self.source_text)
+    def _convert_sets_to_lists(self, data):
+        """Convert any sets in the data structure to lists."""
+        if isinstance(data, set):
+            return list(data)
+        elif isinstance(data, dict):
+            return {k: self._convert_sets_to_lists(v) for k, v in data.items()}
+        elif isinstance(data, list):
+            return [self._convert_sets_to_lists(item) for item in data]
+        return data
 
     @listen(extracted_structured_information)
-    async def align_structured_information(self, extracted_info):
-        """Align extracted structured information with knowledge sources."""
-        if not extracted_info:
+    async def align_structured_information(self, extracted_result):
+        """Align extracted information with ontology using CrewAI."""
+        if not extracted_result:
             logger.warning("No structured information extracted. Skipping alignment.")
             return None
 
-        logger.info("Starting structured information alignment")
+        print("#"*100)
+        print(extracted_result)
+
+
+        logger.info("Starting alignment process")
+        agent_name = "alignment_agent"
 
         # Initialize alignment components
         alignment_agent, alignment_task = self._initialize_agent_and_task(
@@ -416,72 +367,53 @@ class StructSenseFlow(Flow):
             AlignedTermsDynamic
         )
 
+        print("-"*100)
+        print(f"alignment_agent {alignment_agent}")
+        print("+" * 100)
+        print(f"alignment_task {alignment_task}")
+        print("#" * 100)
+
         if not alignment_agent or not alignment_task:
-            logger.error("Alignment initialization failed")
+            logger.error("Alignment agent initialization failed")
             return None
 
-        agent_name = "alignment_agent"
+        # Convert any sets to lists in the extracted result
+        processed_result = self._convert_sets_to_lists(extracted_result)
+        
+        # Convert any sets in shared_state to lists
+        processed_shared_state = self._convert_sets_to_lists(self.shared_state)
 
-        # Create and run the alignment crew with access to extracted terms
+        # Create and run the alignment crew
         alignment_crew = self._create_crew_with_knowledge(
             alignment_agent,
             alignment_task,
-            extracted_info
+            processed_result
         )
 
+        # Process the alignment
         alignment_result = alignment_crew.kickoff(inputs={
-            "extracted_structured_information": extracted_info,
-            "shared_state": self.shared_state  # Pass shared state
+            "extracted_structured_information": processed_result,
+            "shared_state": processed_shared_state,
+            "alignment_context": "Process the extracted information and align it with the ontology. Also take note of the shared_state that contains results from other agents as well."
         })
 
-        if not alignment_result:
+        print("="*100)
+        print("Alignment Result:")
+        print(alignment_result)
+        print("="*100)
+
+        if alignment_result:
+            result_dict = alignment_result.to_dict()
+            print("="*100)
+            print("Result Dict:")
+            print(result_dict)
+            print("="*100)
+            self._update_shared_state("aligned_terms", result_dict)
+            logger.info(f"Alignment complete with {len(result_dict.get('aligned_terms', []))} aligned terms")
+            return result_dict
+        else:
             logger.warning("Alignment crew returned no results")
             return None
-
-        # Update shared state and return results
-        result_dict = alignment_result.to_dict()
-        self._update_shared_state("aligned_terms", result_dict)
-        logger.info(f"Alignment complete with {len(result_dict.get('aligned_terms', []))} aligned terms")
-
-        # Request human feedback on alignment results
-        #  # disabled feedback for alignment
-        # if self.enable_human_feedback and self.human.is_feedback_enabled_for_agent(agent_name):
-        #     print("#"*100)
-        #     print("requesting human feedback")
-        #     print("#" * 100)
-        #     feedback_dict = self.human.request_feedback(
-        #         data=result_dict,
-        #         step_name="information alignment",
-        #         agent_name=agent_name
-        #     )
-        #
-        #     if has_modifications(feedback_dict, result_dict):
-        #         logger.info("Processing modifications based on human feedback")
-        #         print("*" * 100)
-        #         print("Data modified, running alignment crew again")
-        #         print("*" * 100)
-        #
-        #         # Run the alignment crew again with modified data
-        #         modified_result = alignment_crew.kickoff(inputs={
-        #             "extracted_structured_information": extracted_info,
-        #             "user_feedback_data": feedback_dict,
-        #             "shared_state": self.shared_state,
-        #             "modification_context": "Process the requested user feedback on aligned data. Also take note of the shared_state that contains results from other agents as well. User Feedback Handling: If the input includes modifications previously made based on human/user feedback: Detect and respect these changes (e.g., altered extracted terms). Do not overwrite user-modified terms. Instead, annotate in remarks that user-defined values were retained and evaluated accordingly."
-        #         })
-        #
-        #         if modified_result:
-        #             feedback_dict = modified_result.to_dict()
-        #             self._update_shared_state("aligned_terms", feedback_dict)
-        #         else:
-        #             logger.warning("Modification processing returned no results")
-        #             return result_dict
-        #
-        #     # Update shared state with feedback results
-        #     if feedback_dict:
-        #         self._update_shared_state("aligned_terms", feedback_dict)
-        #         result_dict = feedback_dict
-
-        return result_dict
 
     @listen(align_structured_information)
     async def judge_alignment(self, aligned_info):
@@ -512,14 +444,6 @@ class StructSenseFlow(Flow):
             aligned_info
         )
 
-        # Request human approval before judgment
-        # if self.enable_human_feedback and self.human.is_feedback_enabled_for_agent(agent_name):
-        #     # Provide observation before judgment
-        #     self.human.provide_observation(
-        #         message="Starting judgment process with the following aligned information:",
-        #         data=f"Number of aligned terms: {len(aligned_info.get('aligned_terms', []))}",
-        #         agent_name=agent_name
-        #     )
 
         judge_result = judge_crew.kickoff(inputs={
             "aligned_structured_information": aligned_info,
@@ -535,40 +459,6 @@ class StructSenseFlow(Flow):
         self._update_shared_state("judged_terms", result_dict)
         logger.info(f"Judgment complete with {len(result_dict.get('judged_terms', []))} judged terms")
 
-        # Request human feedback on judgment results
-        # if self.enable_human_feedback and self.human.is_feedback_enabled_for_agent(agent_name):
-        #     feedback_dict = self.human.request_feedback(
-        #         data=result_dict,
-        #         step_name="judgment of alignment",
-        #         agent_name=agent_name
-        #     )
-        #
-        #     # Check if any modifications were made
-        #     if has_modifications(feedback_dict, result_dict):
-        #         logger.info("Processing modifications based on human feedback")
-        #         logger.info("*" * 100)
-        #         logger.info("Data modified, running judgment crew again")
-        #         logger.info("*" * 100)
-        #
-        #         # Run the judge crew again with modified data
-        #         modified_result = judge_crew.kickoff(inputs={
-        #             "aligned_structured_information": aligned_info,
-        #             "user_feedback_data": feedback_dict,
-        #             "shared_state": self.shared_state,
-        #             "modification_context": "Process the requrested user feedback on judge agent output. Also take note of the shared_state that contains results from other agents as well. User Feedback Handling: If the input includes modifications previously made based on human/user feedback: Detect and respect these changes (e.g., altered extracted terms). Do not overwrite user-modified terms. Instead, annotate in remarks that user-defined values were retained and evaluated accordingly."
-        #         })
-        #
-        #         if modified_result:
-        #             feedback_dict = modified_result.to_dict()
-        #             self._update_shared_state("judged_terms", feedback_dict)
-        #         else:
-        #             logger.warning("Modification processing returned no results")
-        #             return result_dict
-        #
-        #     # Update shared state with feedback results
-        #     if feedback_dict:
-        #         self._update_shared_state("judged_terms", feedback_dict)
-        #         result_dict = feedback_dict
 
         return result_dict
 
@@ -591,8 +481,13 @@ class StructSenseFlow(Flow):
             )
             print(f"Debug: Feedback dictionary passed to human feedback agent: {feedback_dict}")
         else:
-            #if not enabled human feedback we return the judge result as default
+            # if not enabled human feedback we return the judge result as default
             feedback_dict = judge_result
+
+        # If no feedback was provided, use the judge result
+        if feedback_dict is None:
+            logger.info("No feedback provided. Using judge result.")
+            return judge_result
 
         # Ensure feedback_dict is a dictionary
         if isinstance(feedback_dict, str):
@@ -606,7 +501,7 @@ class StructSenseFlow(Flow):
             logger.info("*" * 100)
 
             # Check for natural language text in feedback
-            if 'user_feedback_text' in feedback_dict:
+            if isinstance(feedback_dict, dict) and 'user_feedback_text' in feedback_dict:
                 logger.info(f"Natural language feedback: {feedback_dict['user_feedback_text']}")
 
             # Initialize human feedback components
@@ -641,7 +536,7 @@ class StructSenseFlow(Flow):
             )
 
             # Process the modifications
-            user_feedback_text = feedback_dict.get('user_feedback_text', '')
+            user_feedback_text = feedback_dict.get('user_feedback_text', '') if isinstance(feedback_dict, dict) else ''
 
             modified_result = modification_crew.kickoff(inputs={
                 "judged_structured_information_with_human_feedback": feedback_dict,
@@ -664,13 +559,13 @@ class StructSenseFlow(Flow):
         logger.info(f"Human feedback processing complete with {len(feedback_dict.get('judged_terms', []))} final terms")
         return feedback_dict
 
+
 def str_to_bool(s):
     if isinstance(s, bool):
         return s
     if s is None:
         return False
     return str(s).strip().lower() == 'true'
-
 
 
 def kickoff(
@@ -685,8 +580,7 @@ def kickoff(
         env_file: Optional[str] = None,
         api_key: Optional[str] = None
 ) -> Union[Dict[str, Any], str]:
-    """
-    Kickoff the StructSense flow with the given configurations.
+    """Kickoff the StructSense flow with the given configurations.
 
     Args:
         agentconfig: Agent configuration file path or dictionary
@@ -705,9 +599,9 @@ def kickoff(
     """
     try:
         logger.info("Starting StructSense flow...")
-        logger.info("#"*100)
+        logger.info("#" * 100)
         logger.info(f"Starting {enable_human_feedback}")
-        logger.info("#"*100)
+        logger.info("#" * 100)
         enable_human_feedback = str_to_bool(enable_human_feedback)
         try:
             if agent_feedback_config is not None:
@@ -722,7 +616,7 @@ def kickoff(
                     "judge_agent": False,
                     "humanfeedback_agent": True
                 }
-        except Exception as e:
+        except Exception:
             agent_feedback_config_bool = {
                 "extractor_agent": False,
                 "alignment_agent": False,
@@ -791,10 +685,9 @@ def kickoff(
                 logger.warning("No pending feedback found but result was 'feedback'")
                 return None
 
-        logger.info(f"Flow completed successfully")
+        logger.info("Flow completed successfully")
         return result
 
     except Exception as e:
         logger.error(f"Flow execution failed: {str(e)}")
         raise
-

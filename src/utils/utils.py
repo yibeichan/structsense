@@ -1281,3 +1281,26 @@ def transform_extracted_data(combined_result: Union[dict, list]) -> List[dict]:
 
     return transformed_terms
 
+from collections import defaultdict
+from collections.abc import MutableMapping
+
+def merge_dicts_preserve_structure(dicts):
+    def recursive_merge(target, source):
+        for key, value in source.items():
+            if isinstance(value, MutableMapping):
+                if key not in target:
+                    target[key] = {}
+                recursive_merge(target[key], value)
+            else:
+                if key not in target:
+                    target[key] = set()
+                try:
+                    target[key].add(value if not isinstance(value, list) else tuple(value))
+                except TypeError:
+                    target[key].add(str(value))  # fallback for unhashable types
+
+    merged = {}
+    for d in dicts:
+        recursive_merge(merged, d)
+
+    return merged
