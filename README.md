@@ -1,110 +1,322 @@
-# The Sensein's python package template repo
+# 🧩 StructSense
 
-Welcome to the [Sensein](https://sensein.group/) python template repo! 
-This template is here to help you kick off your projects with a clean and efficient setup. 
-It's inspired by the [python template by the Child Mind Institute](https://github.com/childmindresearch/template-python-repository) (thanks you!). Our version diverges in its setup process and in both the variety and quantity of automated features included.
+Welcome to `structsense`!
 
-Just follow these steps, and you'll be on your way:
-1. **Choose a unique package name:** First off, you need a cool name for your package. To make sure it's not already taken on PyPI, head over to `https://pypi.org/project/ner_framework/`. If you get a "Not Found" page, you're likely good to go!
+`structsense` is a powerful multi-agent system designed to extract structured information from unstructured data. By orchestrating intelligent agents, it helps you make sense of complex information — hence the name *structsense*.
 
-2. **Use this template:** Go to the GitHub page for this template. You'll find a "Use this template" button on the top right. Click it to start setting up your project with the template's structure.
-
-3. **Configure your project:** During the setup, you'll specify some basics like your project's name and whether it's public or private. You will be able to change this info in the future, no pressure!
-
-4. **Add GitHub Secrets:** For automated processes, add these secrets to your GitHub repo:
-
-- `PYPI_TOKEN`: Your token for PyPI, allowing GitHub Actions to publish your package.
-- `AUTO_ORG_TOKEN`: A token for automated organization actions (this is useful for using [auto](https://github.com/intuit/auto) for automatic changelog generation).
-- `CODECOV_TOKEN`: Your [Codecov](https://about.codecov.io/) token for reporting code coverage.
-
-To obtain these tokens:
-- For `PYPI_TOKEN`, log in to your PyPI account, go to your account settings, and create an API token. Alternatively, ask the admin of your organization to do so.
-- `AUTO_ORG_TOKEN` is a personal access token from GitHub, used for actions requiring organization-level permissions. Generate one in your GitHub settings under Developer settings > Personal access tokens. Alternatively, if the repo is under your organization GitHub, please, ask the admin of your organization to provide one.
-- For `CODECOV_TOKEN`, sign up or log in to Codecov, add your repository, and you'll be provided with a token.
-
-To add these tokens:
-Go to your repository on GitHub, click on "Settings" > "Secrets" > "Actions", then click on "New repository secret". Name your secret (e.g., `PYPI_TOKEN`) and paste the token value. Repeat this for each token.
-
-5. **Clone the repo:** Once your repository is set up, clone it to your local machine.
-
-6. **Replace placeholders with custom values**: Please, run `python template_setup.py --package-name ner_framework --package-repo-without-git-extension https://github.com/sensein/ner_framework --github-nickname tekrajchhetri --codecov-token 27acb1f9-86c6-47da-935d-f6343fd23432 --email tekraj@mit.edu`. 
-For example, `python template_setup.py --package-name pipepal --package-repo-without-git-extension https://github.com/fabiocat93/pipepal --github-nickname fabiocat93 --codecov-token IQR1RCYMAA --email fabiocat@mit.edu`. This will replace some placeholders in the entire directory (including folder names, file names, file content) with your custom info:
-- ner_framework (e.g., `pipepal`)
-- https://github.com/sensein/ner_framework (e.g., `https://github.com/sensein/pipepal`)
-- tekrajchhetri (e.g., `sensein`)
-- 27acb1f9-86c6-47da-935d-f6343fd23432 (e.g.,`ABC0DEFGHI`)
-- tekraj@mit.edu (e.g., `sensein@mit.edu`)
-It will also enable GitHub custom automation and delete the `template_setup.py` (you won't need that anymore).
-
-7. **Adjust `pyproject.toml`:** Please, double-check `pyproject.toml` and update it with some custom info, if needed (i.e., `description`, `authors`, `maintainers`, `description`, `homepage`, `repository`, `keywords`, and `classifiers`). No need to touch `version`. This will be automatically handled by the package.
-
-8. **Update README.md:** Replace the content of this README.md with information specific to your project.
-
-9. **Install poetry:** Poetry is a fantastic tool for managing dependencies and packaging. If you haven't installed it yet, check out their [documentation](https://python-poetry.org/docs/) for guidance. It's pretty straightforward.
-
-10. **Verify poetry setup:** Run `poetry --help` to ensure everything is set up correctly. To verify that the project folder is all in order, you can run `poetry check`.
-
-11. **Install dependencies:** Get all your project's dependencies in place by running `poetry install --with dev`.
-
-12. **Secure your package name:** Even if you're not quite ready to publish, consider securing your package name on PyPI. You can do this by publishing a dummy version (0.0.1) of your package with `poetry publish --build`.
-
-13. **Commit and push:** Now's the time to add (e.g., `git add .`) and commit (e.g., `git commit -m "here goes a wonderful message"`) your changes. Consider adding a tag for your initial version (recommended), like `git tag 0.0.1`, then push it all to GitHub with `git push --tags` and `git push origin main`.
-
-14. **Check GitHub actions:** If your push was successful, it'll trigger some GitHub Actions like code quality checks and tests. Make sure everything passes!
-
-15. **Work in dev branch:** For future changes, create a `dev` branch and make your updates there. Use pull requests to merge these changes into the main branch.
-
-16. **Releasing new versions:** If you want to release a new version of your package, add a "release" label to your pull request. This will trigger all the necessary actions to update the version tag, create a changelog, release the new version, and even create/update your package documentation.
-
-17. **Set up API documentation:** After your first successful pull request, set up your API documentation website. Go to your repository's settings, find the GitHub Pages section, and select `docs` as the source. You'll get a link to your API docs.
-
-18. **[Bonus] Customize issue and pull request remplates:** Optionally, you can customize your issue and pull request remplates from the `.github` folder.
-
-That's it! With these steps, you're well on your way to creating an awesome Python package. Keep up the great work, and **happy coding**!
-
-
-# The ```ner_framework``` repo
-
-[![Build](https://github.com/sensein/ner_framework/actions/workflows/test.yaml/badge.svg?branch=main)](https://github.com/sensein/ner_framework/actions/workflows/test.yaml?query=branch%3Amain)
-[![codecov](https://codecov.io/gh/tekrajchhetri/ner_framework/branch/main/graph/badge.svg?token=27acb1f9-86c6-47da-935d-f6343fd23432)](https://codecov.io/gh/tekrajchhetri/ner_framework)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-
-[![PyPI](https://img.shields.io/pypi/v/ner_framework.svg)](https://pypi.org/project/ner_framework/)
-[![Python Version](https://img.shields.io/pypi/pyversions/ner_framework)](https://pypi.org/project/ner_framework)
-[![License](https://img.shields.io/pypi/l/ner_framework)](https://opensource.org/licenses/Apache-2.0)
-
-[![pages](https://img.shields.io/badge/api-docs-blue)](https://tekrajchhetri.github.io/ner_framework)
-
-Welcome to the ```ner_framework``` repo! This is a Python package for doing incredible stuff.
+Whether you're working with scientific texts, documents, or messy data, `structsense` enables you to transform it into meaningful, structured insights.
 
 **Caution:**: this package is still under development and may change rapidly over the next few weeks.
 
-## Features
-- A few
-- Cool
-- Things
-- These may include a wonderful CLI interface.
 
-## Installation
-Install this package via :
+---
+## 🏗️ Architecture
+The below is the architecture of the `StructSense`.
 
-```sh
-pip install ner_framework
+![](structsense_arch.png)
+---
+## 🚀 Features
+
+- 🔍 Multi-agent architecture for modular processing
+  - 📑 Extraction of (structured) information from text--based on configuration
+  - 🤝 Collaboration between agents
+  - ⚙️ Easy use
+  - 🧠 Designed as general purpose domain agnostic framework
+
+---
+
+## 🧠 Example Use Cases
+- Entity and relation extraction from text
+  - Knowledge graph construction
+## 📁 Examples
+
+- Explore the [`example`](example) directory for usage examples and reference configurations.
+
+## 📄 Blank Configuration Template
+
+- Refer to the [`config_template`](config_template) directory for a blank configuration template.  
+  Before using it, make sure to read the detailed explanation of the configuration template provided in the sections below (`Configuration Template`).
+
+---
+### Installation
+After cloning the repository.
+```shell
+pip install -e .
+```
+## 📄 Requirements
+### 📄 PDF Extraction Configuration
+
+By default, the system uses the **local Grobid service** for PDF content extraction. If you have Grobid installed locally, **no additional setup is required** — everything is preconfigured for local usage.
+
+**Grobid Installation via Docker**
+```shell
+docker pull lfoppiano/grobid:0.8.0
+docker run --init -p 8070:8070 -e JAVA_OPTS="-XX:+UseZGC" lfoppiano/grobid:0.8.0
+```
+JAVA_OPTS="-XX:+UseZGC" helps to resolve the following error in MAC OS.
+
+---
+
+#### 🔧 Using a Remote Grobid Server
+
+If you're running Grobid on a **remote server**, set the following environment variable:
+
+```bash
+GROBID_SERVER_URL_OR_EXTERNAL_SERVICE=http://your-remote-grobid-server:PORT
+
 ```
 
-Or get the newest development version via:
+### 🌐 Using an External PDF Extraction API
+If you prefer to use an external PDF extraction API service, you must:
 
-```sh
-pip install git+https://github.com/sensein/ner_framework.git
+- Set the API endpoint:
+
+  ```shell
+    GROBID_SERVER_URL_OR_EXTERNAL_SERVICE=https://api.SOMEAPIENDPOINT.com/api/extract
+  ```
+- Enable the external API mode:
+  ```shell
+    EXTERNAL_PDF_EXTRACTION_SERVICE=True
+  ```
+> Note:
+At the moment, the external API is assumed to be publicly accessible and does not require authentication (e.g., no JWT token or API key). Support for authenticated requests may be added in future versions.
+
+---
+
+## 📄 Configuration
+`structsense` supports flexible customization through both environment variables and a YAML configuration file.
+
+The YAML config can be passed as a parameter (e.g., `--agentconfig config/ner_agent.yaml`), allowing you to define models, agents, and behaviors specific to your use case.
+
+### 🔧 Environment Variables
+
+You need to set the following environment variables (e.g., in a `.env` file). WEAVIATE is a vector database that we use to store the knolwledge, which in our case is the ontology/schemas.
+
+- WEAVIATE related environment variables are only necessary if you want to use vector database as a knowledge source.
+
+#### 🧠 Core Keys
+
+| Variable              | Description                                  | Default          |
+|-----------------------|----------------------------------------------|------------------|
+ | `ENABLE_KG_SOURCE`    | Enable access to knowledge source, i.e., vector database.| `false`|
+| `WEAVIATE_API_KEY`    | **Required.** API key for Weaviate access    | —                |
+
+#### 🌐 [Weaviate](https://weaviate.io/) Configuration
+This configuration is optional and only necessary if you plan to integrate a knowledge source (e.g., a vector store) into the pipeline.
+
+| Variable                   | Description                                  | Default   |
+|---------------------------|----------------------------------------------|-----------|
+| `WEAVIATE_HTTP_HOST`      | HTTP host for Weaviate                       | `localhost` |
+| `WEAVIATE_HTTP_PORT`      | HTTP port for Weaviate                       | `8080`    |
+| `WEAVIATE_HTTP_SECURE`    | Use HTTPS for HTTP connection (`true/false`) | `false`   |
+| `WEAVIATE_GRPC_HOST`      | gRPC host for Weaviate                       | `localhost` |
+| `WEAVIATE_GRPC_PORT`      | gRPC port for Weaviate                       | `50051`   |
+| `WEAVIATE_GRPC_SECURE`    | Use secure gRPC (`true/false`)              | `false`   |
+
+#### 🧪 Weaviate Timeouts 
+
+| Variable                   | Description                                  | Default   |
+|---------------------------|----------------------------------------------|-----------|
+| `WEAVIATE_TIMEOUT_INIT`   | Timeout for initialization (in seconds)     | `30`      |
+| `WEAVIATE_TIMEOUT_QUERY`  | Timeout for query operations (in seconds)   | `60`      |
+| `WEAVIATE_TIMEOUT_INSERT` | Timeout for data insertions (in seconds)    | `120`     |
+
+#### 🤖 Ollama Configuration for WEAVIATE
+
+| Variable              | Description                                   | Default                                 |
+|-----------------------|-----------------------------------------------|-----------------------------------------|
+| `OLLAMA_API_ENDPOINT` | API endpoint for Ollama model                 | `http://host.docker.internal:11434`     |
+| `OLLAMA_MODEL`        | Name of the Ollama embedding model            | `nomic-embed-text`                      |
+
+> ⚠️ **Note**:  If ollama is running in host machine and vector database, i.e., WEAVIATE, in docker, then we use `http://host.docker.internal:11434`, which is also the default value. However, if both are running in docker in the same host, use `http://localhost:11434 `.
+#### 🧵 Optional: Experiment Tracking
+
+| Variable               | Description                                                                | Default           |
+|------------------------|----------------------------------------------------------------------------|-------------------|
+| `ENABLE_WEIGHTSANDBIAS` | Enable [Weights & Biases](https://wandb.ai/site) monitoring (`true/false`) | `false`           |
+| `ENABLE_MLFLOW`        | Enable [MLflow](https://mlflow.org/) logging (`true/false`)                | `false`           |
+| `MLFLOW_TRACKING_URL`  | MLflow tracking server URL                                                 | `http://localhost:5000` |
+> ⚠️ **Note**: `WEAVIATE_API_KEY` is **required** for `structsense` to run. If it's not set, the system will raise an error.
+>   For Weights & Biases you need to create a project and provide it's key.
+
+
+
+```shell
+# Example .env file
+
+WEAVIATE_API_KEY=your_api_key
+WEAVIATE_HTTP_HOST=localhost
+WEAVIATE_HTTP_PORT=8080
+WEAVIATE_HTTP_SECURE=false
+
+WEAVIATE_GRPC_HOST=localhost
+WEAVIATE_GRPC_PORT=50051
+WEAVIATE_GRPC_SECURE=false
+
+WEAVIATE_TIMEOUT_INIT=30
+WEAVIATE_TIMEOUT_QUERY=60
+WEAVIATE_TIMEOUT_INSERT=120
+
+OLLAMA_API_ENDPOINT=http://host.docker.internal:11434
+OLLAMA_MODEL=nomic-embed-text
+
+ENABLE_WEAVE=true
+ENABLE_MLFLOW=true
+MLFLOW_TRACKING_URL=http://localhost:5000
+```
+#### 🛠️ Minimum Required Environment Variables
+
+Below are the **minimum required environment variables** to run `structsense`.  
+This configuration assumes all other optional variables will use their default values.
+
+In this minimal setup:
+
+- 🚫 **Weights & Biases** is disabled  
+  - 🚫 **MLflow tracking** is disabled  
+  - 🚫 **Knowledge source integration** is disabled  
+  - 📦 As a result, **no vector database** (e.g., Weaviate) is used
+
+```shell 
+ENABLE_WEIGHTSANDBIAS=false
+ENABLE_MLFLOW=false
+ENABLE_KG_SOURCE=false  
+```
+---
+### 📄 Configuration Template
+
+A blank configuration template is available in the [config_template](config_template) directory.
+
+Please follow the guidelines below when updating the configuration:
+
+---
+
+#### ⚠️ Important Notes
+
+- **Do not rename** predefined YAML keys such as `task_config` and `agent_config`.  
+  Only update the following:
+  - Agent descriptions
+  - Task descriptions
+  - Embedding configurations
+  - Knowledge configurations
+
+- **Do not replace variables** enclosed in curly braces (`{}`); they are dynamically populated at runtime:
+  - `{literature}`: Input text, e.g., extracted PDF content
+  - `{extracted_structured_information}`: Output from the extractor agent
+  - `{aligned_structured_information}`: Output from the alignment agent
+  - `{judged_structured_information_with_human_feedback}`: Output from the judge agent
+  - `{modification_context}` and `{user_feedback_text}`: User feedback used by the feedback agent
+
+---
+
+### 🧠 Agent Configuration
+
+The following agents should not be renamed or removed:
+- `extractor_agent`
+- `alignment_agent`
+- `judge_agent`
+- `humanfeedback_agent`
+
+Each agent should be configured with the following fields: `role`, `goal`, `backstory`, and `llm`.
+
+For best practices, refer to the [Crew AI Core Principles of Effective Agent Design](https://docs.crewai.com/guides/agents/crafting-effective-agents#core-principles-of-effective-agent-design).
+
+```yaml
+agent_config:
+  extractor_agent:
+    role: >
+      agent role
+    goal: >
+      goal
+    backstory: >
+      agent backstory
+    llm:
+      model: openrouter/openai/gpt-4o-mini
+      base_url: https://openrouter.ai/api/v1
+
+  alignment_agent:
+    ...
+```
+### Using Ollama
+In the snippet above, we use the openai/gpt-4o-mini model via OpenRouter. If you prefer to use open-source models with Ollama, you'll need to update the model and base URL accordingly. This approach is especially useful as it doesn't require an API key from paid providers like OpenRouter or OpenAI. However, you must ensure that Ollama is running and that the desired model is installed and available locally.
+```yaml
+agent_config:
+  extractor_agent:
+    role: >
+      agent role
+    goal: >
+      goal
+    backstory: >
+      agent backstory
+    llm:
+      model: ollama/deepseek-r1:14b #notice the difference
+      base_url: http://localhost:11434 #notice the difference
+
+  alignment_agent:
+    ...
+```
+Running via CLI without an API key (not required for local models):
+```shell
+structsense-cli extract \
+--source SOME.pdf \
+--config config.yaml \
+--env_file .env
 ```
 
-## Quick start
-```Python
-from ner_framework.app import hello_world
+### 🧾 Task Configuration
 
-hello_world()
+Each task corresponds to a specific agent and must not be renamed:
+
+- `extraction_task`
+- `alignment_task`
+- `judge_task`
+- `humanfeedback_task`
+
+Each task should include:
+
+- **`description`**:  
+  A detailed explanation of the task, including the required input (e.g., `{literature}` for extraction, `{extracted_structured_information}` for alignment, etc.).
+
+- **`expected_output`**:  
+  The expected output format. The format must be JSON. You may specify the structure or give an example.
+
+- **`agent_id`**:  
+  This key assigns the task to its corresponding agent. The value must match the agent ID defined under `agent_config`.
+
+Example:
+```yaml
+task_config:
+  extraction_task:
+    description: >
+      Extract structured information from the given literature.
+      Input: {literature}
+    expected_output: >
+      Format: JSON  
+      Example: {"entities": [...], "relations": [...]}
+    agent_id: extractor_agent
+```
+To learn more about the tasks, see [Crafting Effective Tasks for Your Agents](https://docs.crewai.com/guides/agents/crafting-effective-agents#crafting-effective-tasks-for-your-agents).
+### 👤 Human-in-the-Loop Configuration
+Controls whether the human feedback loop is enabled.
+```yaml
+# Human-in-the-loop configuration
+human_in_loop_config:
+  humanfeedback_agent: true
+```
+### 🧬 Embedding Configuration
+Defines the configuration for the embedding model used in the system.
+```yaml
+embedder_config:
+  provider: ollama
+  config:
+    api_base: http://localhost:11434
+    model: nomic-embed-text:latest
 ```
 
-## To do:
-- [ ] A
-- [ ] lot
+### Chunking
+By default chunking is false you can enable it by passing `--chunking True`.
+
+## Docker
+The docker directory contains the individual and also merged docker compose file which installs Grobid, Ollama and Vector database.
+
+### License
+[Apache License Version 2.0](LICENSE.txt)

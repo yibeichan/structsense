@@ -1,17 +1,20 @@
 # Ruff
 .ruff_cache
-
+config/agents.yaml
 # Mac
 .DS_Store
-
+crew_memory/
+.venv/
+.*/*
+.ipynb_checkpoints
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-
+example/.structsense_env
 # C extensions
 *.so
-
+.chainlit/
 # Distribution / packaging
 .Python
 build/
@@ -37,7 +40,7 @@ MANIFEST
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
-
+*.env
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
