@@ -38,6 +38,11 @@ The below is the architecture of the `StructSense`.
   Before using it, make sure to read the detailed explanation of the configuration template provided in the sections below (`Configuration Template`).
 
 ---
+### Installation
+After cloning the repository.
+```shell
+pip install -e .
+```
 ## 📄 Requirements
 ### 📄 PDF Extraction Configuration
 

@@ -30,10 +30,18 @@ pip install git+https://github.com/sensein/structsense.git@dev
 
    - Grobid: [http://localhost:8070/](http://localhost:8070/)
    - Ollama: [http://localhost:11434/](http://localhost:11434/)
-   - 
 
    Once the containers are running, you’re ready to execute the examples.
-3. 
+
+   If there's an issue with Grobid, run it individually. Grobid uses `JAVA` so please make sure it is installed.
+   
+   ```shell
+   docker pull lfoppiano/grobid:0.8.0
+   docker run --init -p 8070:8070 -e JAVA_OPTS="-XX:+UseZGC" lfoppiano/grobid:0.8.0
+   ```
+   JAVA_OPTS="-XX:+UseZGC" helps to resolve the following error in MAC OS.
+
+---
 
 
 ---
