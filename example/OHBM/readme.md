@@ -33,7 +33,7 @@ pip install git+https://github.com/sensein/structsense.git@dev
 
    Once the containers are running, you’re ready to execute the examples.
 
-   If there's an issue with Grobid, run it individually. 
+   If there's an issue with Grobid, run it individually. The command below has been tested on MaC.
    
    ```shell
    docker pull lfoppiano/grobid:0.8.0
@@ -48,7 +48,15 @@ pip install git+https://github.com/sensein/structsense.git@dev
    
    ```
    For more see [https://grobid.readthedocs.io/en/latest/Run-Grobid/](https://grobid.readthedocs.io/en/latest/Run-Grobid/).
+
+   Official image: 
+
+   ```shell
+   docker pull grobid/grobid:0.8.2
+   docker run grobid/grobid:0.8.2
+   ```
 ---
+
 
 
 ---
@@ -139,7 +147,7 @@ structsense-cli extract \
   --save_file result.json
 ```
 
-> ⚠️ A version of the config file for **Ollama** is also included, but note that small local models may fail or produce suboptimal results.
+> ⚠️ A version of the config file for **Ollama** is also included, but note that small local models may fail or produce suboptimal results. If you use **Ollama** version make sure to adjust the docker compose file so that it pulls the correct model that you've specified in config.yaml.
 
 > ⚠️ For this demonstration we've disabled knowledge source as we do not have any ontologies in our vector databse.
 
