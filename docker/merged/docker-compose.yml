@@ -19,8 +19,8 @@ services:
       sh -c "
       ollama serve & 
       sleep 5 &&
-      ollama pull nomic-embed-text &&
-      ollama pull deepseek-r1:7b &&
+      ollama pull nomic-embed-text:v1.5 &&
+      ollama pull deepseek-r1:1.5b &&
       tail -f /dev/null
       "
 
