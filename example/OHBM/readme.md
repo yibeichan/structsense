@@ -3,6 +3,15 @@
 This guide provides instructions for running extraction tasks (NER and Resource Extraction) using either **OpenRouter** or **Ollama**, with support for Docker-based setup.
 
 ---
+## Install StructSense
+```shell
+pip install git+https://github.com/sensein/structsense.git
+```
+
+From Dev branch
+```shell
+pip install git+https://github.com/sensein/structsense.git@dev
+```
 
 ## 🔧 Setup Instructions
 
@@ -17,8 +26,15 @@ This guide provides instructions for running extraction tasks (NER and Resource 
    ```bash
    docker compose up
    ```
+   Test (open in browser):
+
+   - Grobid: [http://localhost:8070/](http://localhost:8070/)
+   - Ollama: [http://localhost:11434/](http://localhost:11434/)
+   - 
 
    Once the containers are running, you’re ready to execute the examples.
+3. 
+
 
 ---
 
