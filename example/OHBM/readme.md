@@ -111,3 +111,5 @@ structsense-cli extract \
 > ⚠️ A version of the config file for **Ollama** is also included, but note that small local models may fail or produce suboptimal results.
 
 > ⚠️ For this demonstration we've disabled knowledge source as we do not have any ontologies in our vector databse.
+
+> ⚠️ To enable chunking pass `--chunking True`. It still needs improvement and would be nice to have some help.
