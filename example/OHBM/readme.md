@@ -8,10 +8,6 @@ This guide provides instructions for running extraction tasks (NER and Resource 
 pip install git+https://github.com/sensein/structsense.git
 ```
 
-From Dev branch
-```shell
-pip install git+https://github.com/sensein/structsense.git@dev
-```
 
 ## 🔧 Setup Instructions
 
