@@ -307,5 +307,11 @@ embedder_config:
     model: nomic-embed-text:latest
 ```
 
+### Chunking
+By default chunking is false you can enable it by passing `--chunking True`.
+
+## Docker
+The docker directory contains the individual and also merged docker compose file which installs Grobid, Ollama and Vector database.
+
 ### License
 [Apache License Version 2.0](LICENSE.txt)
