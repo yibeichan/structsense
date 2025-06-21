@@ -231,6 +231,32 @@ agent_config:
   alignment_agent:
     ...
 ```
+### Using Ollama
+In the snippet above, we use the openai/gpt-4o-mini model via OpenRouter. If you prefer to use open-source models with Ollama, you'll need to update the model and base URL accordingly. This approach is especially useful as it doesn't require an API key from paid providers like OpenRouter or OpenAI. However, you must ensure that Ollama is running and that the desired model is installed and available locally.
+```yaml
+agent_config:
+  extractor_agent:
+    role: >
+      agent role
+    goal: >
+      goal
+    backstory: >
+      agent backstory
+    llm:
+      model: ollama/deepseek-r1:14b #notice the difference
+      base_url: http://localhost:11434 #notice the difference
+
+  alignment_agent:
+    ...
+```
+Running via CLI without an API key (not required for local models):
+```shell
+structsense-cli extract \
+--source SOME.pdf \
+--config config.yaml \
+--env_file .env
+```
+
 ### 🧾 Task Configuration
 
 Each task corresponds to a specific agent and must not be renamed:
@@ -280,6 +306,12 @@ embedder_config:
     api_base: http://localhost:11434
     model: nomic-embed-text:latest
 ```
+
+### Chunking
+By default chunking is false you can enable it by passing `--chunking True`.
+
+## Docker
+The docker directory contains the individual and also merged docker compose file which installs Grobid, Ollama and Vector database.
 
 ### License
 [Apache License Version 2.0](LICENSE.txt)
