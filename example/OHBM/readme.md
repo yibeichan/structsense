@@ -33,7 +33,7 @@ pip install git+https://github.com/sensein/structsense.git@dev
 
    Once the containers are running, you’re ready to execute the examples.
 
-   If there's an issue with Grobid, run it individually. Grobid uses `JAVA` so please make sure it is installed.
+   If there's an issue with Grobid, run it individually. 
    
    ```shell
    docker pull lfoppiano/grobid:0.8.0
@@ -41,6 +41,13 @@ pip install git+https://github.com/sensein/structsense.git@dev
    ```
    JAVA_OPTS="-XX:+UseZGC" helps to resolve the following error in MAC OS.
 
+   Force platform emulation with --platform linux/amd64.
+
+   ```shell
+   docker run --platform linux/amd64 --init -p 8070:8070 -e JAVA_OPTS="-XX:+UseZGC" lfoppiano/grobid:0.8.0
+   
+   ```
+   For more see [https://grobid.readthedocs.io/en/latest/Run-Grobid/](https://grobid.readthedocs.io/en/latest/Run-Grobid/).
 ---
 
 
