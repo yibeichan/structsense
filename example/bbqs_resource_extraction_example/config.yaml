@@ -100,6 +100,9 @@ task_config:
               - mentions (optional: dictionary with fields like models, datasets, benchmarks, papers)
 
       Use `null` if information is missing.
+      
+      Important:
+        Do not copy the example output.
 
     Resource:
       { literature }
@@ -128,8 +131,10 @@ task_config:
 
   alignment_task:
     description: >
-      Take the output of extractor_agent {extracted_structured_information} as input and perform the concept alignment based on existing resources. 
-      A concept alignment is anything where you align the given entity to the matching concept aka class from the existing set of resources.
+      Take the output of extractor_agent as input and perform the concept alignment based on existing resources. 
+      A concept alignment is anything where you align the given entity to the matching concept aka class from the existing set of resources. If you can't align just place N/A.
+      
+      Inputs: {extracted_structured_information}
 
     expected_output: >
       output format: json
@@ -141,7 +146,63 @@ task_config:
             "type": "Model",
             "category": "Pose Estimation",
             "target": "Animal",
+             "mapped_target_concept": [
+                             {
+                               "id": "http://purl.obolibrary.org/obo/BTO_0000042",
+                               "label": "animal",
+                               "ontology": "BTO"
+            }],
             "specific_target": "Quadruped, Horse, Mice, Primate, Macaque, Dogs, Rodents",
+             "mapped_specific_target_concept": [
+                                                 {
+                                                   "specific_target": "Quadruped",
+                                                   "mapped_target_concept": {
+                                                     "label": "Tetrapoda",
+                                                     "id": "NCBITaxon:32523",
+                                                     "ontology": "NCBITaxon"
+                                                   }
+                                                 },
+                                                 {
+                                                   "specific_target": "Horse",
+                                                   "mapped_target_concept": {
+                                                     "label": "Equus caballus",
+                                                     "id": "NCBITaxon:9796",
+                                                     "ontology": "NCBITaxon"
+                                                   }
+                                                 },
+                                                 {
+                                                   "specific_target": "Mice",
+                                                   "mapped_target_concept": {
+                                                     "label": "Mus musculus",
+                                                     "id": "NCBITaxon:10090",
+                                                     "ontology": "NCBITaxon"
+                                                   }
+                                                 },
+                                                 {
+                                                   "specific_target": "Primate",
+                                                   "mapped_target_concept": {
+                                                     "label": "Primates",
+                                                     "id": "NCBITaxon:9443",
+                                                     "ontology": "NCBITaxon"
+                                                   }
+                                                 },
+                                                 {
+                                                   "specific_target": "Macaque",
+                                                   "mapped_target_concept": {
+                                                     "label": "Macaca",
+                                                     "id": "NCBITaxon:9541",
+                                                     "ontology": "NCBITaxon"
+                                                   }
+                                                 },
+                                                 {
+                                                   "specific_target": "Dogs",
+                                                   "mapped_target_concept": {
+                                                     "label": "Canis lupus familiaris",
+                                                     "id": "NCBITaxon:9615",
+                                                     "ontology": "NCBITaxon"
+                                                   }
+                                                 }
+             ],
             "url": "https://deeplabcut.github.io/DeepLabCut/docs/ModelZoo.html"
             "mentions": {
                 "datasets": ["Quadruped-80K", "AnimalPose", "AwA-Pose", "AcinoSet", "Horse-30", "StanfordDogs", "AP-10K", "iRodent"],
@@ -171,8 +232,64 @@ task_config:
                   "description": "A DeepLabCut SuperAnimal pre-trained model for quadruped animal pose estimation using DeepLabCut, trained on the TopViewMouse-5K dataset.",
                   "type": "Model",
                   "category": "Pose Estimation",
-                  "target": "Animal",
-                  "specific_target": "Quadruped, Horse, Mice, Primate, Macaque, Dogs, Rodents",
+      "target": "Animal",
+            "mapped_target_concept": [
+                             {
+                               "id": "http://purl.obolibrary.org/obo/BTO_0000042",
+                               "label": "animal",
+                               "ontology": "BTO"
+            }],
+            "specific_target": "Quadruped, Horse, Mice, Primate, Macaque, Dogs, Rodents",
+             "mapped_specific_target_concept": [
+                                                 {
+                                                   "specific_target": "Quadruped",
+                                                   "mapped_target_concept": {
+                                                     "label": "Tetrapoda",
+                                                     "id": "NCBITaxon:32523",
+                                                     "ontology": "NCBITaxon"
+                                                   }
+                                                 },
+                                                 {
+                                                   "specific_target": "Horse",
+                                                   "mapped_target_concept": {
+                                                     "label": "Equus caballus",
+                                                     "id": "NCBITaxon:9796",
+                                                     "ontology": "NCBITaxon"
+                                                   }
+                                                 },
+                                                 {
+                                                   "specific_target": "Mice",
+                                                   "mapped_target_concept": {
+                                                     "label": "Mus musculus",
+                                                     "id": "NCBITaxon:10090",
+                                                     "ontology": "NCBITaxon"
+                                                   }
+                                                 },
+                                                 {
+                                                   "specific_target": "Primate",
+                                                   "mapped_target_concept": {
+                                                     "label": "Primates",
+                                                     "id": "NCBITaxon:9443",
+                                                     "ontology": "NCBITaxon"
+                                                   }
+                                                 },
+                                                 {
+                                                   "specific_target": "Macaque",
+                                                   "mapped_target_concept": {
+                                                     "label": "Macaca",
+                                                     "id": "NCBITaxon:9541",
+                                                     "ontology": "NCBITaxon"
+                                                   }
+                                                 },
+                                                 {
+                                                   "specific_target": "Dogs",
+                                                   "mapped_target_concept": {
+                                                     "label": "Canis lupus familiaris",
+                                                     "id": "NCBITaxon:9615",
+                                                     "ontology": "NCBITaxon"
+                                                   }
+                                                 }
+             ],
                   "url": "https://deeplabcut.github.io/DeepLabCut/docs/ModelZoo.html"
                   "mentions": {
                       "datasets": ["Quadruped-80K", "AnimalPose", "AwA-Pose", "AcinoSet", "Horse-30", "StanfordDogs", "AP-10K", "iRodent"],
@@ -211,8 +328,64 @@ task_config:
                         "description": "A DeepLabCut SuperAnimal pre-trained model for quadruped animal pose estimation using DeepLabCut, trained on the TopViewMouse-5K dataset.",
                         "type": "Model",
                         "category": "Pose Estimation",
-                        "target": "Animal",
-                        "specific_target": "Quadruped, Horse, Mice, Primate, Macaque, Dogs, Rodents",
+      "target": "Animal",
+            "mapped_target_concept": [
+                             {
+                               "id": "http://purl.obolibrary.org/obo/BTO_0000042",
+                               "label": "animal",
+                               "ontology": "BTO"
+            }],
+            "specific_target": "Quadruped, Horse, Mice, Primate, Macaque, Dogs, Rodents",
+             "mapped_specific_target_concept": [
+                                                 {
+                                                   "specific_target": "Quadruped",
+                                                   "mapped_target_concept": {
+                                                     "label": "Tetrapoda",
+                                                     "id": "NCBITaxon:32523",
+                                                     "ontology": "NCBITaxon"
+                                                   }
+                                                 },
+                                                 {
+                                                   "specific_target": "Horse",
+                                                   "mapped_target_concept": {
+                                                     "label": "Equus caballus",
+                                                     "id": "NCBITaxon:9796",
+                                                     "ontology": "NCBITaxon"
+                                                   }
+                                                 },
+                                                 {
+                                                   "specific_target": "Mice",
+                                                   "mapped_target_concept": {
+                                                     "label": "Mus musculus",
+                                                     "id": "NCBITaxon:10090",
+                                                     "ontology": "NCBITaxon"
+                                                   }
+                                                 },
+                                                 {
+                                                   "specific_target": "Primate",
+                                                   "mapped_target_concept": {
+                                                     "label": "Primates",
+                                                     "id": "NCBITaxon:9443",
+                                                     "ontology": "NCBITaxon"
+                                                   }
+                                                 },
+                                                 {
+                                                   "specific_target": "Macaque",
+                                                   "mapped_target_concept": {
+                                                     "label": "Macaca",
+                                                     "id": "NCBITaxon:9541",
+                                                     "ontology": "NCBITaxon"
+                                                   }
+                                                 },
+                                                 {
+                                                   "specific_target": "Dogs",
+                                                   "mapped_target_concept": {
+                                                     "label": "Canis lupus familiaris",
+                                                     "id": "NCBITaxon:9615",
+                                                     "ontology": "NCBITaxon"
+                                                   }
+                                                 }
+             ],
                         "url": "https://deeplabcut.github.io/DeepLabCut/docs/ModelZoo.html"
                         "mentions": {
                             "datasets": ["Quadruped-80K", "AnimalPose", "AwA-Pose", "AcinoSet", "Horse-30", "StanfordDogs", "AP-10K", "iRodent"],
