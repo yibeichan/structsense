@@ -5,44 +5,56 @@
 agent_config:
   extractor_agent:
     role: >
-      Survey content extraction specialist
+      Questionnaire metadata extraction specialist
     goal: >
-      Analyze the input PDF of a questionnaire and extract all relevant ReproSchema-compatible information, including question text, response options, item types, conditional logic, language(s), and any embedded scoring instructions or metadata.
+      Extract all questionnaire components from PDF including activity metadata (title, description, preamble), 
+      individual items (questions, response options, input types), and scoring logic in a structured format 
+      suitable for ReproSchema conversion.
     backstory: >
-      You are a survey data specialist with deep familiarity in structured questionnaire representation, particularly the ReproSchema standard. You excel at parsing semi-structured documents and translating them into machine-actionable formats to support FAIR-aligned schema creation.
+      You are an expert at parsing questionnaires and surveys, identifying the hierarchical structure of 
+      assessments. You extract metadata that maps to ReproSchema concepts: activities (questionnaires), 
+      items (questions), and response constraints.
     llm:
       model: openrouter/openai/gpt-4o-mini
       base_url: https://openrouter.ai/api/v1
 
   alignment_agent:
     role: >
-      Schema generation and alignment engineer
+      ReproSchema metadata formatter
     goal: >
-      Transform the structured extraction output into a ReproSchema-compliant representation, including proper construction of the 'activities', 'items', and 'activity_schema' folders in JSON-LD format, ensuring semantic and structural correctness.
+      Transform extracted questionnaire data into a structured JSON format containing all necessary metadata 
+      for ReproSchema conversion, ensuring completeness and proper organization of activity and item information.
     backstory: >
-      You are a ReproSchema engineering expert who converts raw extracted data into compliant JSON-LD files. You are fluent in LinkML, understand the protocol > activity > item nesting structure, and can apply controlled vocabularies, conditional logic, and multilingual mappings to each item.
+      You specialize in organizing questionnaire metadata into clean, structured formats. You understand 
+      ReproSchema requirements and ensure all extracted information is properly categorized for items, 
+      activities, response options, and scoring logic.
     llm:
       model: openrouter/openai/gpt-4o-mini
       base_url: https://openrouter.ai/api/v1
 
   judge_agent:
     role: >
-      Quality assurance and schema verification agent
+      Metadata completeness validator
     goal: >
-      Validate whether the generated ReproSchema output accurately reflects the content and intent of the original questionnaire. Ensure that all extracted items are present, semantically correct, and properly structured according to ReproSchema expectations.
+      Validate that all questionnaire components have been accurately extracted and formatted, ensuring no 
+      questions, response options, or metadata are missing from the structured output.
     backstory: >
-      You are a QA analyst specializing in structured survey data. You compare original PDF content against the final schema, checking for omissions, misalignments, or structural inconsistencies. You ensure adherence to FAIR principles, correct metadata, and traceable provenance.
+      You are a quality assurance specialist who verifies extraction completeness. You cross-reference the 
+      structured output against the original PDF content to ensure all items, response scales, and activity 
+      metadata are captured accurately.
     llm:
       model: openrouter/openai/gpt-4o-mini
       base_url: https://openrouter.ai/api/v1
 
   humanfeedback_agent:
     role: >
-      Human-in-the-loop schema refinement agent
+      Metadata refinement specialist
     goal: >
-      Support structured schema revision based on human feedback. Clarify, update, or restructure the ReproSchema output to reflect reviewer insights and correct interpretation errors.
+      Incorporate human feedback to correct extraction errors, clarify ambiguous items, and ensure the 
+      structured metadata accurately represents the original questionnaire.
     backstory: >
-      You collaborate with human annotators to incorporate their expert feedback into the schema. You assist in improving alignment with ontology mappings, user-specific conventions, and domain constraints while maintaining ReproSchema integrity.
+      You collaborate with human reviewers to refine extracted metadata, fixing any misinterpretations 
+      and ensuring the output will produce valid ReproSchema when converted.
     llm:
       model: openrouter/openai/gpt-4o-mini
       base_url: https://openrouter.ai/api/v1
@@ -51,201 +63,172 @@ agent_config:
 task_config:
   extraction_task:
     description: >
-      Task: Extract survey elements from a questionnaire PDF.
-
+      Extract all questionnaire components from the PDF for ReproSchema conversion.
+      
       Input: {literature}
+      
+      Extract the following metadata:
+      
+      1. Activity-level metadata:
+         - id: Short identifier for the questionnaire (e.g., "PHQ9", "GAD7")
+         - prefLabel: Display name of the questionnaire
+         - description: Full description of the assessment
+         - preamble: Instructions or introductory text
+         - citation: Source reference if available
+      
+      2. For each item/question:
+         - id: Unique identifier (e.g., "Q1", "Q2")
+         - question: Full question text
+         - prefLabel: Short display label
+         - inputType: Type of input (radio, text, number, etc.)
+         - valueRequired: Whether response is mandatory
+         - responseOptions: List of choices with value and name
+         - scoring: How responses map to scores
+      
+      3. Additional metadata:
+         - computedScores: Any total scores or subscales with calculation formulas
+         - conditionalLogic: Skip patterns or branching rules
+         - languages: Available languages
+         - order: Sequence of items
+   
 
-      Instructions:
-      - Parse the questionnaire for all items, including their text, response options, response types (e.g., Likert, open text, numeric), and metadata such as language and scoring.
-      - If available, identify conditional logic, item grouping, or multimedia components (e.g., images/audio).
-      - Output should use clean structured JSON that can serve as input for schema generation.
-    
     expected_output: >
-      Output format: JSON
-      Example output:
-      {
+      output format: json
+      Example output: {
+        "activity": {
+          "id": "PHQ9",
+          "prefLabel": "Patient Health Questionnaire-9",
+          "description": "A 9-item depression screening tool",
+          "preamble": "Over the last 2 weeks, how often have you been bothered by the following problems?",
+          "citation": "Kroenke et al., 2001"
+        },
         "items": [
           {
-            "id": "q1",
-            "question": "Over the past two weeks, how often have you felt down, depressed, or hopeless?",
-            "response_type": "likert_5",
-            "options": ["Not at all", "Several days", "More than half the days", "Nearly every day"],
-            "language": "en",
-            "scoring": {"Not at all": 0, "Several days": 1, "More than half the days": 2, "Nearly every day": 3}
-          },
-          ...
+            "id": "PHQ9_01",
+            "question": "Little interest or pleasure in doing things",
+            "prefLabel": "PHQ9 Q1",
+            "inputType": "radio",
+            "valueRequired": true,
+            "responseOptions": [
+              {"value": 0, "name": "Not at all"},
+              {"value": 1, "name": "Several days"},
+              {"value": 2, "name": "More than half the days"},
+              {"value": 3, "name": "Nearly every day"}
+            ]
+          }
         ],
-        "metadata": {
-          "title": "PHQ-9",
-          "languages": ["en"],
-          "notes": "Includes standard DSM-5 depression items"
-        }
+        "computedScores": [
+          {
+            "variableName": "PHQ9_total",
+            "label": "PHQ-9 Total Score",
+            "jsExpression": "PHQ9_01 + PHQ9_02 + ... + PHQ9_09"
+          }
+        ],
+        "order": ["PHQ9_01", "PHQ9_02", "..."]
       }
 
+    # do not chage this, remove it later
     agent_id: extractor_agent
 
   alignment_task:
-    description: >
-      Task: Generate ReproSchema-compatible structure from extracted information.
-
+    description: > 
       Inputs: {extracted_structured_information}
-
+      
       Instructions:
-      - Use the structured extraction to generate a compliant ReproSchema JSON-LD folder structure.
-      - Create the following components:
-        - `items/`: Each individual question as an `item.jsonld`
-        - `activities/`: A composite `activity.jsonld` that references the items
-        - `activity_schema.jsonld`: Validation and UI configuration
-      - #agent config
-# Do not introduce any new variable name
-# the variables inside {} receives data from the previous agent. the {literature} variable is the one that passes the
-# initial input.
-agent_config:
-  extractor_agent:
-    role: >
-      Survey content extraction specialist
-    goal: >
-      Analyze the input PDF of a questionnaire and extract all relevant ReproSchema-compatible information, including question text, response options, item types, conditional logic, language(s), and any embedded scoring instructions or metadata.
-    backstory: >
-      You are a survey data specialist with deep familiarity in structured questionnaire representation, particularly the ReproSchema standard. You excel at parsing semi-structured documents and translating them into machine-actionable formats to support FAIR-aligned schema creation.
-    llm:
-      model: openrouter/openai/gpt-4o-mini
-      base_url: https://openrouter.ai/api/v1
+      - Format the extracted metadata into a comprehensive JSON structure for ReproSchema conversion
+      - Organize all metadata with proper structure and relationships
+      - Include all activity metadata with language tags (e.g., {"en": "text"})
+      - Structure items with complete properties including UI configuration
+      - Format response options with choices array containing name and value
+      - Include computed scores with proper JavaScript expressions
+      - Add UI ordering and configuration
+      - Ensure all fields use appropriate data types and structures
+       
 
-  alignment_agent:
-    role: >
-      Schema generation and alignment engineer
-    goal: >
-      Transform the structured extraction output into a ReproSchema-compliant representation, including proper construction of the 'activities', 'items', and 'activity_schema' folders in JSON-LD format, ensuring semantic and structural correctness.
-    backstory: >
-      You are a ReproSchema engineering expert who converts raw extracted data into compliant JSON-LD files. You are fluent in LinkML, understand the protocol > activity > item nesting structure, and can apply controlled vocabularies, conditional logic, and multilingual mappings to each item.
-    llm:
-      model: openrouter/openai/gpt-4o-mini
-      base_url: https://openrouter.ai/api/v1
-
-  judge_agent:
-    role: >
-      Quality assurance and schema verification agent
-    goal: >
-      Validate whether the generated ReproSchema output accurately reflects the content and intent of the original questionnaire. Ensure that all extracted items are present, semantically correct, and properly structured according to ReproSchema expectations.
-    backstory: >
-      You are a QA analyst specializing in structured survey data. You compare original PDF content against the final schema, checking for omissions, misalignments, or structural inconsistencies. You ensure adherence to FAIR principles, correct metadata, and traceable provenance.
-    llm:
-      model: openrouter/openai/gpt-4o-mini
-      base_url: https://openrouter.ai/api/v1
-
-  humanfeedback_agent:
-    role: >
-      Human-in-the-loop schema refinement agent
-    goal: >
-      Support structured schema revision based on human feedback. Clarify, update, or restructure the ReproSchema output to reflect reviewer insights and correct interpretation errors.
-    backstory: >
-      You collaborate with human annotators to incorporate their expert feedback into the schema. You assist in improving alignment with ontology mappings, user-specific conventions, and domain constraints while maintaining ReproSchema integrity.
-    llm:
-      model: openrouter/openai/gpt-4o-mini
-      base_url: https://openrouter.ai/api/v1
-
-# agent task config
-task_config:
-  extraction_task:
-    description: >
-      Task: Extract survey elements from a questionnaire PDF.
-
-      Input: {literature}
-
-      Instructions:
-      - Parse the questionnaire for all items, including their text, response options, response types (e.g., Likert, open text, numeric), and metadata such as language and scoring.
-      - If available, identify conditional logic, item grouping, or multimedia components (e.g., images/audio).
-      - Output should use clean structured JSON that can serve as input for schema generation.
-    
     expected_output: >
-      Output format: JSON
-      Example output:
-      {
+      output format: json
+      Example output: {
+        "schemaType": "reproschema:Activity",
+        "schemaVersion": "1.0.0",
+        "activity": {
+          "id": "ACE_schema",
+          "prefLabel": {"en": "Adverse Childhood Experiences"},
+          "description": {"en": "10-item questionnaire about childhood experiences"},
+          "preamble": {"en": "Prior to your 18th birthday:"},
+          "citation": {"en": "https://www.cdc.gov/violenceprevention/aces/"}
+        },
         "items": [
           {
-            "id": "q1",
-            "question": "Over the past two weeks, how often have you felt down, depressed, or hopeless?",
-            "response_type": "likert_5",
-            "options": ["Not at all", "Several days", "More than half the days", "Nearly every day"],
-            "language": "en",
-            "scoring": {"Not at all": 0, "Several days": 1, "More than half the days": 2, "Nearly every day": 3}
-          },
-          ...
+            "id": "ACE_01",
+            "question": {"en": "Did a parent or other adult in the household often..."},
+            "prefLabel": {"en": "ACE Q1"},
+            "ui": {
+              "inputType": "radio"
+            },
+            "valueRequired": true,
+            "responseOptions": {
+              "multipleChoice": false,
+              "choices": [
+                {"name": {"en": "No"}, "value": 0},
+                {"name": {"en": "Yes"}, "value": 1}
+              ]
+            }
+          }
         ],
-        "metadata": {
-          "title": "PHQ-9",
-          "languages": ["en"],
-          "notes": "Includes standard DSM-5 depression items"
-        }
+        "ui": {
+          "order": ["ACE_01", "ACE_02"],
+          "shuffle": false
+        },
+        "compute": [
+          {
+            "variableName": "ACE_total_score",
+            "jsExpression": "ACE_01 + ACE_02 + ..."
+          }
+        ]
       }
 
-    agent_id: extractor_agent
-
-  alignment_task:
-    description: >
-      Task: Generate ReproSchema-compatible structure from extracted information.
-
-      Inputs: {extracted_structured_information}
-
-      Instructions:
-      - Use the structured extraction to generate a compliant ReproSchema JSON-LD folder structure.
-      - Create the following components:
-        - `items/`: Each individual question as an `item.jsonld`
-        - `activities/`: A composite `activity.jsonld` that references the items
-        - `activity_schema.jsonld`: Validation and UI configuration
-      - Ensure correct use of `@id`, `@type`, `skos:prefLabel`, `ui:order`, response options, scoring logic, and multilingual fields.
-    
-    expected_output: >
-      Output format: structured directory layout with separate JSON-LD files.
-
-      Example output:
-      ├── activities/
-      │   └── phq9_activity.jsonld
-      ├── items/
-      │   ├── q1.jsonld
-      │   ├── q2.jsonld
-      │   └── ...
-      └── activity_schema.jsonld
-
-      Each file should follow ReproSchema JSON-LD conventions, including proper use of:
-      - `@context`, `@id`, `@type`
-      - multilingual labels (`skos:prefLabel`)
-      - item-level logic (e.g., `responseOptions`, `branchLogic`, `ui:inputType`)
-      - references between activities and items
-
+    # do not chage this, remove it later
     agent_id: alignment_agent
 
   judge_task:
     description: >
-      Task: Evaluate the quality and fidelity of the generated ReproSchema files.
+      {aligned_structured_information} 
+         
+      Instructions: 
+      - Validate that all questions from the original PDF are captured in the structured output
+      - Check that response options match exactly with the source
+      - Verify activity metadata (title, description, preamble) is complete and accurate
+      - Ensure item properties (question text, input type, required status) are correct
+      - Confirm scoring logic and computed scores are properly represented
+      - Identify any missing, incomplete, or misrepresented information
+      - Provide a completeness score and detailed feedback
 
-      Inputs: {aligned_structured_information}
-
-      Instructions:
-      - Cross-reference the ReproSchema output against the original PDF (provided via {literature}).
-      - Identify mismatches in question wording, missing items, response scale inconsistencies, or metadata errors.
-      - Flag issues and summarize schema quality on fidelity, completeness, and schema compliance.
-    
-    expected_output: >
-      Output format: JSON
-      Example output:
-      {
-        "issues": [
-          {"item_id": "q3", "issue": "Response options do not match source PDF"},
-          {"item_id": "q7", "issue": "Item text is truncated"}
-        ],
-        "overall_score": 7.5,
-        "fidelity_summary": "Most items are accurately captured, but 3 questions show mismatch in branching logic or wording."
+    expected_output: > 
+      output format: json 
+      Example output: {
+        "validation": {
+          "completeness": {
+            "allItemsExtracted": true,
+            "itemCount": 10,
+            "missingItems": []
+          },
+          "accuracy": {
+            "responseOptionsCorrect": true,
+            "scoringLogicPresent": true,
+            "metadataComplete": true
+          },
+          "issues": [],
+          "overallScore": 10.0,
+          "summary": "All questionnaire components successfully extracted and formatted."
+        }
       }
 
+    # do not chage this, remove it later
     agent_id: judge_agent
 
   humanfeedback_task:
     description: >
-      Input: {judged_structured_information_with_human_feedback} 
-  
-      Objective: Evaluate and, if necessary, revise the structured output to ensure accurate alignment with the target ontology/schema.
+      Input: {judged_structured_information_with_human_feedback}
 
       modification_context: 
         {modification_context}
@@ -254,107 +237,38 @@ task_config:
         {user_feedback_text}
       
       Instructions:
-        Alignment Assessment:
-        Analyze {judged_structured_information_with_human_feedback} to determine whether the extracted terms and structures are correctly aligned with the intended ontology or schema.
+      - Apply human feedback to refine the extracted metadata
+      - Correct any extraction errors identified by the reviewer
+      - Clarify ambiguous items or response options
+      - Add any missing metadata or properties
+      - Improve formatting and structure based on feedback
+      - Ensure the refined output maintains ReproSchema compatibility
+      - Document all changes made based on feedback
+      
   
+
     expected_output: > 
       output format: json
-      Example output: addd example
-
-    agent_id: humanfeedback_agent
-
-# embedding config
-# see for more details and parameters for config
-# https://docs.crewai.com/concepts/memory#additional-embedding-providerscl
-embedder_config:
-  provider: ollama
-  config:
-    api_base: http://localhost:11434
-    model: nomic-embed-text:latest
-
-# knowledge search config
-knowledge_config:
-  search_key: #local vector database
-    - entity
-    - label
-# human in loop config
-human_in_loop_config:
-  humanfeedback_agent: true
-    expected_output: >
-      Output format: structured directory layout with separate JSON-LD files.
-
-      Example output:
-      ├── activities/
-      │   └── phq9_activity.jsonld
-      ├── items/
-      │   ├── q1.jsonld
-      │   ├── q2.jsonld
-      │   └── ...
-      └── activity_schema.jsonld
-
-      Each file should follow ReproSchema JSON-LD conventions, including proper use of:
-      - `@context`, `@id`, `@type`
-      - multilingual labels (`skos:prefLabel`)
-      - item-level logic (e.g., `responseOptions`, `branchLogic`, `ui:inputType`)
-      - references between activities and items
-
-    agent_id: alignment_agent
-
-  judge_task:
-    description: >
-      Task: Evaluate the quality and fidelity of the generated ReproSchema files.
-
-      Inputs: {aligned_structured_information}
-
-      Instructions:
-      - Cross-reference the ReproSchema output against the original PDF (provided via {literature}).
-      - Identify mismatches in question wording, missing items, response scale inconsistencies, or metadata errors.
-      - Flag issues and summarize schema quality on fidelity, completeness, and schema compliance.
-    
-    expected_output: >
-      Output format: JSON
-      Example output:
-      {
-        "issues": [
-          {"item_id": "q3", "issue": "Response options do not match source PDF"},
-          {"item_id": "q7", "issue": "Item text is truncated"}
-        ],
-        "overall_score": 7.5,
-        "fidelity_summary": "Most items are accurately captured, but 3 questions show mismatch in branching logic or wording."
-      }
-
-    agent_id: judge_agent
-
-  humanfeedback_task:
-    description: >
-      Input: {judged_structured_information_with_human_feedback} 
-  
-      Objective: Evaluate and, if necessary, revise the structured output to ensure accurate alignment with the target ontology/schema.
-
-      modification_context: 
-        {modification_context}
-      
-      user_feedback_text:
-        {user_feedback_text}
-      
-      Instructions:
-        Alignment Assessment:
-        Analyze {judged_structured_information_with_human_feedback} to determine whether the extracted terms and structures are correctly aligned with the intended ontology or schema.
-  
-    expected_output: >
-      Output format: structured directory layout with updated JSON-LD files (if revisions are necessary), alongside a summary of changes.
-
-      Example output:
-      {
-        "revised_files": {
-          "items/q3.jsonld": {
-            "change": "Corrected response option order based on reviewer feedback"
+      Example output: {
+        "refined_metadata": {
+          "schemaType": "reproschema:Activity",
+          "schemaVersion": "1.0.0",
+          "activity": {
+            "id": "ACE_schema",
+            "prefLabel": {"en": "Adverse Childhood Experiences (ACE)"},
+            "description": {"en": "10-item questionnaire about adverse childhood experiences"},
+            "preamble": {"en": "Prior to your 18th birthday:"},
+            "citation": {"en": "Felitti et al., 1998"}
           },
-          "activity_schema.jsonld": {
-            "change": "Added UI hint for multilingual switcher"
-          }
+          "items": [...],
+          "ui": {...},
+          "compute": [...]
         },
-        "summary": "2 schema components were updated based on human feedback. Item q3's response scale was reordered and the activity schema was enhanced for language support."
+        "changes_applied": [
+          "Corrected questionnaire title to include '(ACE)' abbreviation",
+          "Updated citation to original authors",
+          "Fixed response option text for item 3"
+        ]
       }
 
     agent_id: humanfeedback_agent
