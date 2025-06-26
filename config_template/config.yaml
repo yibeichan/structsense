@@ -58,7 +58,10 @@ task_config:
 
     expected_output: >
       output format: json
-      Example output: add example
+      Example output: 
+        "extracted_terms":{
+            #data
+         }
 
     # do not chage this, remove it later
     agent_id: extractor_agent
@@ -72,8 +75,10 @@ task_config:
 
     expected_output: >
       output format: json
-      Example output: add example
-
+      Example output: 
+        "aligned_terms":{
+            #data
+         }
     # do not chage this, remove it later
     agent_id: alignment_agent
 
@@ -85,7 +90,10 @@ task_config:
 
     expected_output: > 
       output format: json 
-      Example output: addd example
+      Example output: 
+        "judged_terms":{
+            #data
+         }
 
     # do not chage this, remove it later
     agent_id: judge_agent
@@ -107,8 +115,10 @@ task_config:
 
     expected_output: > 
       output format: json
-      Example output: addd example
-
+      Example output: 
+        "judged_terms":{
+            #data
+         }
     agent_id: humanfeedback_agent
 
 # embedding config
