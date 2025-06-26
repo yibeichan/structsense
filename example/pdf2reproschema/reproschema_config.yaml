@@ -17,6 +17,8 @@ agent_config:
     llm:
       model: openrouter/openai/gpt-4o-mini
       base_url: https://openrouter.ai/api/v1
+      temperature: 0.9
+      
 
   alignment_agent:
     role: >
@@ -31,6 +33,7 @@ agent_config:
     llm:
       model: openrouter/openai/gpt-4o-mini
       base_url: https://openrouter.ai/api/v1
+      temperature: 0.9
 
   judge_agent:
     role: >
@@ -45,6 +48,7 @@ agent_config:
     llm:
       model: openrouter/openai/gpt-4o-mini
       base_url: https://openrouter.ai/api/v1
+      temperature: 0.9
 
   humanfeedback_agent:
     role: >
@@ -58,6 +62,7 @@ agent_config:
     llm:
       model: openrouter/openai/gpt-4o-mini
       base_url: https://openrouter.ai/api/v1
+      temperature: 0.9
 
 # agent task config
 task_config:
@@ -94,7 +99,7 @@ task_config:
 
     expected_output: >
       output format: json
-      Example output: {
+      Example output: "extracted_terms":{
         "activity": {
           "id": "PHQ9",
           "prefLabel": "Patient Health Questionnaire-9",
@@ -146,7 +151,7 @@ task_config:
 
     expected_output: >
       output format: json
-      Example output: {
+      Example output: "aligned_terms":{
         "schemaType": "reproschema:Activity",
         "schemaVersion": "1.0.0",
         "activity": {
@@ -201,10 +206,51 @@ task_config:
       - Confirm scoring logic and computed scores are properly represented
       - Identify any missing, incomplete, or misrepresented information
       - Provide a completeness score and detailed feedback
+    
+      Important: "judged_terms" should also include the output from previous agents
 
     expected_output: > 
       output format: json 
-      Example output: {
+      Example output: "judged_terms":{
+      "refined_metadata":{
+              "schemaType": "reproschema:Activity",
+              "schemaVersion": "1.0.0",
+              "activity": {
+                "id": "ACE_schema",
+                "prefLabel": {"en": "Adverse Childhood Experiences"},
+                "description": {"en": "10-item questionnaire about childhood experiences"},
+                "preamble": {"en": "Prior to your 18th birthday:"},
+                "citation": {"en": "https://www.cdc.gov/violenceprevention/aces/"}
+              },
+              "items": [
+                {
+                  "id": "ACE_01",
+                  "question": {"en": "Did a parent or other adult in the household often..."},
+                  "prefLabel": {"en": "ACE Q1"},
+                  "ui": {
+                    "inputType": "radio"
+                  },
+                  "valueRequired": true,
+                  "responseOptions": {
+                    "multipleChoice": false,
+                    "choices": [
+                      {"name": {"en": "No"}, "value": 0},
+                      {"name": {"en": "Yes"}, "value": 1}
+                    ]
+                  }
+                }
+              ],
+              "ui": {
+                "order": ["ACE_01", "ACE_02"],
+                "shuffle": false
+              },
+              "compute": [
+                {
+                  "variableName": "ACE_total_score",
+                  "jsExpression": "ACE_01 + ACE_02 + ..."
+                }
+              ]
+            },
         "validation": {
           "completeness": {
             "allItemsExtracted": true,
@@ -244,25 +290,67 @@ task_config:
       - Ensure the refined output maintains ReproSchema compatibility
       - Document all changes made based on feedback
       
+      
   
 
     expected_output: > 
       output format: json
-      Example output: {
-        "refined_metadata": {
-          "schemaType": "reproschema:Activity",
-          "schemaVersion": "1.0.0",
-          "activity": {
-            "id": "ACE_schema",
-            "prefLabel": {"en": "Adverse Childhood Experiences (ACE)"},
-            "description": {"en": "10-item questionnaire about adverse childhood experiences"},
-            "preamble": {"en": "Prior to your 18th birthday:"},
-            "citation": {"en": "Felitti et al., 1998"}
+      Example output: "judged_terms":{
+         "refined_metadata":{
+              "schemaType": "reproschema:Activity",
+              "schemaVersion": "1.0.0",
+              "activity": {
+                "id": "ACE_schema",
+                "prefLabel": {"en": "Adverse Childhood Experiences"},
+                "description": {"en": "10-item questionnaire about childhood experiences"},
+                "preamble": {"en": "Prior to your 18th birthday:"},
+                "citation": {"en": "https://www.cdc.gov/violenceprevention/aces/"}
+              },
+              "items": [
+                {
+                  "id": "ACE_01",
+                  "question": {"en": "Did a parent or other adult in the household often..."},
+                  "prefLabel": {"en": "ACE Q1"},
+                  "ui": {
+                    "inputType": "radio"
+                  },
+                  "valueRequired": true,
+                  "responseOptions": {
+                    "multipleChoice": false,
+                    "choices": [
+                      {"name": {"en": "No"}, "value": 0},
+                      {"name": {"en": "Yes"}, "value": 1}
+                    ]
+                  }
+                }
+              ],
+              "ui": {
+                "order": ["ACE_01", "ACE_02"],
+                "shuffle": false
+              },
+              "compute": [
+                {
+                  "variableName": "ACE_total_score",
+                  "jsExpression": "ACE_01 + ACE_02 + ..."
+                }
+              ]
+            },
+        "validation": {
+          "completeness": {
+            "allItemsExtracted": true,
+            "itemCount": 10,
+            "missingItems": []
           },
-          "items": [...],
-          "ui": {...},
-          "compute": [...]
-        },
+          "accuracy": {
+            "responseOptionsCorrect": true,
+            "scoringLogicPresent": true,
+            "metadataComplete": true
+          },
+          "issues": [],
+          "overallScore": 10.0,
+          "summary": "All questionnaire components successfully extracted and formatted."
+        }
+      },
         "changes_applied": [
           "Corrected questionnaire title to include '(ACE)' abbreviation",
           "Updated citation to original authors",
