@@ -7,9 +7,9 @@ agent_config:
     role: >
       Questionnaire metadata extraction specialist
     goal: >
-      Extract all questionnaire components from PDF including activity metadata (title, description, preamble), 
+      Extract all questionnaire components from the given PDF including activity metadata (title, description, preamble), 
       individual items (questions, response options, input types), and scoring logic in a structured format 
-      suitable for ReproSchema conversion.
+      suitable for ReproSchema conversion. Do not make up components. Make sure you extract all related components from each question.
     backstory: >
       You are an expert at parsing questionnaires and surveys, identifying the hierarchical structure of 
       assessments. You extract metadata that maps to ReproSchema concepts: activities (questionnaires), 
@@ -63,17 +63,17 @@ agent_config:
 task_config:
   extraction_task:
     description: >
-      Extract all questionnaire components from the PDF for ReproSchema conversion.
+      Extract all questionnaire components from the given PDF for ReproSchema conversion.
       
       Input: {literature}
       
       Extract the following metadata:
       
       1. Activity-level metadata:
-         - id: Short identifier for the questionnaire (e.g., "PHQ9", "GAD7")
+         - id: Short identifier for the questionnaire using the first letter of the questionnaire title but ignore words such as "and" (e.g., "MOOD AND FEELINGS QUESTIONNAIRE: Long Version" will be "MFQ-long" )
          - prefLabel: Display name of the questionnaire
          - description: Full description of the assessment
-         - preamble: Instructions or introductory text
+         - preamble: Instructions or introductory text if any
          - citation: Source reference if available
       
       2. For each item/question:
@@ -137,7 +137,6 @@ task_config:
       Instructions:
       - Format the extracted metadata into a comprehensive JSON structure for ReproSchema conversion
       - Organize all metadata with proper structure and relationships
-      - Include all activity metadata with language tags (e.g., {"en": "text"})
       - Structure items with complete properties including UI configuration
       - Format response options with choices array containing name and value
       - Include computed scores with proper JavaScript expressions
@@ -280,7 +279,7 @@ embedder_config:
   provider: ollama
   config:
     api_base: http://localhost:11434
-    model: nomic-embed-text:latest
+    model: nomic-embed-text:v1.5
 
 # knowledge search config
 knowledge_config:
